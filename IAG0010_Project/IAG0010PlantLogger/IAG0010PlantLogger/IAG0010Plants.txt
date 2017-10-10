@@ -1,0 +1,268 @@
+{
+	"Plants" :
+	{
+		"Number of plants" : 7,
+		"Descriptions" :
+		[
+			{
+				"Name" : "Plant_1", 
+				"Channels" :
+				[
+					{
+						"Name" : "Reactor",
+						"Points" :
+						[
+							{ "Name" : "Temperature", "Type" : "Temperature", "Min" : 10.0, "Max" : 90.0 },
+							{ "Name" : "Pressure", "Type" : "Pressure", "Min" : 1.5, "Max" : 2.2 },
+							{ "Name" : "Level", "Type" : "Level", "Min" : 80, "Max" : 100 }
+						]
+					},
+					{
+						"Name" : "Input pipe",
+						"Points" :
+						[
+							{ "Name" : "Input flow", "Type" : "Flow speed", "Min" : 0.0, "Max" : 0.2 }
+						]
+					},
+					{
+						"Name" : "Output pipe",
+						"Points" :
+						[
+							{ "Name" : "Output flow", "Type" : "Flow speed", "Min" : 0.0, "Max" : 0.2 }
+						]
+					}
+				]
+			},
+			{
+				"Name" : "Plant_2", 
+				"Channels" :
+				[
+					{
+						"Name" : "Reactor",
+						"Points" :
+						[
+							{ "Name" : "Temperature", "Type" : "Temperature", "Min" : 10.0, "Max" : 90.0 },
+							{ "Name" : "Pressure", "Type" : "Pressure", "Min" : 1.5, "Max" : 2.2 },
+							{ "Name" : "Level", "Type" : "Level", "Min" : 80, "Max" : 100 }
+						]
+					},
+					{
+						"Name" : "Compressor",
+						"Points" :
+						[
+							{ "Name" : "Input pressure", "Type" : "Pressure", "Min" : 0.0, "Max" : 0.5 },
+							{ "Name" : "Output pressure", "Type" : "Pressure", "Min" : 5.0, "Max" : 8.0 }
+						]
+					},
+					{
+						"Name" : "Heater",
+						"Points" :
+						[
+							{ "Name" : "Input temperature", "Type" : "Temperature", "Min" : 20.0, "Max" : 40.0 },
+							{ "Name" : "Output temperature", "Type" : "Temperature", "Min" : 500.0, "Max" : 525.0 }
+						]
+					},
+					{
+						"Name" : "Separator",
+						"Points" :
+						[
+							{ "Name" : "Acid on output", "Type" : "Concentration", "Min" : 95, "Max" : 100 }
+						]
+					}
+				]
+			},
+			{
+				"Name" : "Plant_3", 
+				"Channels" :
+				[
+					{
+						"Name" : "Extractor",
+						"Points" :
+						[
+							{ "Name" : "Input solution flow", "Type" : "Flow speed", "Min" : 0.05, "Max" : 0.06 },
+							{ "Name" : "Input solution temperature", "Type" : "Temperature", "Min" : 50.0, "Max" : 100.0 },
+							{ "Name" : "Input solution pressure", "Type" : "Pressure", "Min" : 1.0, "Max" : 2.5 },
+							{ "Name" : "Input solution pH", "Type" : "pH", "Min" : 3.5, "Max" : 9.0 },
+							{ "Name" : "Extracted product concentration", "Type" : "Concentration", "Min" : 95, "Max" : 100 },
+							{ "Name" : "Extracted product pH", "Type" : "pH", "Min" : 7.5, "Max" : 8.4 }
+						]
+					},
+					{
+						"Name" : "Oxidizer",
+						"Points" :
+						[
+							{ "Name" : "Input air pressure", "Type" : "Pressure", "Min" : 0.0, "Max" : 2.0 },
+							{ "Name" : "Output liquid flow", "Type" : "Flow speed", "Min" : 0.0, "Max" : 10.0 } 
+						]
+					},
+					{
+						"Name" : "Separator",
+						"Points" :
+						[
+							{ "Name" : "Input liquid flow", "Type" : "Flow speed", "Min" : 0.05, "Max" : 0.1 },
+							{ "Name" : "Disulfid on output", "Type" : "Concentration", "Min" : 95, "Max" : 100 }
+						]
+					}
+				]
+			},
+			{
+			"Name" : "Plant_4", 
+				"Channels" :
+				[
+					{
+						"Name" : "Primary clarifier",
+						"Points" :
+						[
+							{ "Name" : "Level", "Type" : "Level", "Min" : 80, "Max" : 100 },
+							{ "Name" : "Input turbidity", "Type" : "Turbidity", "Min" : 1.0, "Max" : 50.0 },
+							{ "Name" : "Output turbidity", "Type" : "Turbidity", "Min" : 1.0, "Max" : 10.0 }
+						]
+					},
+					{
+						"Name" : "Secondary clarifier",
+						"Points" :
+						[
+							{ "Name" : "Level", "Type" : "Level", "Min" : 80, "Max" : 100 },
+							{ "Name" : "Input turbidity", "Type" : "Turbidity", "Min" : 1.0, "Max" : 10.0 },
+							{ "Name" : "Output turbidity", "Type" : "Turbidity", "Min" : 1.0, "Max" : 5.0 }
+						]
+					},
+					{
+						"Name" : "Aeration tank",
+						"Points" :
+						[
+							{ "Name" : "Level", "Type" : "Level", "Min" : 80, "Max" : 100 } 
+						]
+					},
+					{
+						"Name" : "Air compressor",
+						"Points" :
+						[
+							{ "Name" : "Output air pressure", "Type" : "Pressure", "Min" : 0.0, "Max" : 5.0 }
+						]
+					},
+					{
+						"Name" : "Grit chamber",
+						"Points" :
+						[
+							{ "Name" : "Level", "Type" : "Level", "Min" : 80, "Max" : 100 }
+						]
+					}
+				]
+			},
+			{
+			"Name" : "Plant_5", 
+				"Channels" :
+				[
+					{
+						"Name" : "Absorber",
+						"Points" :
+						[
+							{ "Name" : "Input solution flow", "Type" : "Flow speed", "Min" : 0.05, "Max" : 0.1 },
+							{ "Name" : "Input solution temperature", "Type" : "Temperature", "Min" : 10.0, "Max" : 20.0 },
+							{ "Name" : "Input solution pressure", "Type" : "Pressure", "Min" : 0.5, "Max" : 1.5 },
+							{ "Name" : "Input gas pressure", "Type" : "Pressure", "Min" : 2.0, "Max" : 3.0 },
+							{ "Name" : "Input gas flow", "Type" : "Flow speed", "Min" : 0.01, "Max" : 0.05 },
+							{ "Name" : "Level", "Type" : "Level", "Min" : 80, "Max" : 100 },
+							{ "Name" : "Output solution flow", "Type" : "Flow speed", "Min" : 0.05, "Max" : 0.1 }
+						]
+					},
+					{
+						"Name" : "Regenerator",
+						"Points" :
+						[
+							{ "Name" : "Output solution conductivity", "Type" : "Conductivity", "Min" : 0.05, "Max" : 5.0 },
+							{ "Name" : "Output solution concentration", "Type" : "Concentration", "Min" : 95.0, "Max" : 100.0 },
+							{ "Name" : "Level", "Type" : "Level", "Min" : 80, "Max" : 100 }
+						]
+					},
+					{
+						"Name" : "Reboiler",
+						"Points" :
+						[
+							{ "Name" : "Input steam temperature", "Type" : "Temperature", "Min" : 100.0, "Max" : 200.0 },
+							{ "Name" : "Input steam flow", "Type" : "Flow speed", "Min" : 0.0, "Max" : 0.5 } 
+						]
+					}
+				]
+			},
+			{
+			"Name" : "Plant_6", 
+				"Channels" :
+				[
+					{
+						"Name" : "Heater",
+						"Points" :
+						[
+							{ "Name" : "Air inlet", "Type" : "Flow speed", "Min" : 5.0, "Max" : 10.0 },
+							{ "Name" : "Inside temperature", "Type" : "Temperature", "Min" : 500.0, "Max" : 600.0 },
+							{ "Name" : "Gas inlet", "Type" : "Flow speed", "Min" : 3.5, "Max" : 4.5 },
+							{ "Name" : "Gas outlet", "Type" : "Flow speed", "Min" : 2.5, "Max" : 6.5 }
+						]
+					},
+					{
+						"Name" : "Solution tank",
+						"Points" :
+						[
+							{ "Name" : "Solution conductivity", "Type" : "Conductivity", "Min" : 4.25, "Max" : 4.75 },
+							{ "Name" : "Solution concentration", "Type" : "Concentration", "Min" : 85.0, "Max" : 95.0 },
+							{ "Name" : "Solution pH", "Type" : "pH", "Min" : 7.5, "Max" : 8.4 },
+							{ "Name" : "Level", "Type" : "Level", "Min" : 80, "Max" : 100 }
+						]
+					},
+					{
+						"Name" : "Scrubber",
+						"Points" :
+						[
+							{ "Name" : "Inlet", "Type" : "Flow speed", "Min" : 0.0, "Max" : 10.0 },
+							{ "Name" : "Outlet", "Type" : "Flow speed", "Min" : 0.0, "Max" : 10.0 } 
+						]
+					}
+				]
+			},
+			{
+			"Name" : "Plant_7", 
+				"Channels" :
+				[
+					{
+						"Name" : "Furnace",
+						"Points" :
+						[
+							{ "Name" : "Inside temperature", "Type" : "Temperature", "Min" : 800.0, "Max" : 1000.0 },
+							{ "Name" : "Gas inlet", "Type" : "Flow speed", "Min" : 3.5, "Max" : 4.5 },
+							{ "Name" : "Gas outlet", "Type" : "Flow speed", "Min" : 2.5, "Max" : 6.5 }
+						]
+					},
+					{
+						"Name" : "Mixer",
+						"Points" :
+						[
+							{ "Name" : "NO input", "Type" : "Flow speed", "Min" : 0.0, "Max" : 12.0 },
+							{ "Name" : "O2 input", "Type" : "Flow speed", "Min" : 0.0, "Max" : 20.0 },
+							{ "Name" : "N2 input", "Type" : "Flow speed", "Min" : 0.0, "Max" : 15.0 },
+							{ "Name" : "Output", "Type" : "Flow speed", "Min" : 0.0, "Max" : 25.0 }
+						]
+					},
+					{
+						"Name" : "Bubbler",
+						"Points" :
+						[
+							{ "Name" : "Temperature", "Type" : "Temperature", "Min" : 50.0, "Max" : 95.0 },
+							{ "Name" : "Level", "Type" : "Level", "Min" : 50, "Max" : 95 } 
+						]
+					},
+					{
+						"Name" : "Cooler",
+						"Points" :
+						[
+							{ "Name" : "Input flow", "Type" : "Flow speed", "Min" : 0.0, "Max" : 15.0 },
+							{ "Name" : "Output flow", "Type" : "Flow speed", "Min" : 0.0, "Max" : 15.0 }, 
+							{ "Name" : "Input temperature", "Type" : "Temperature", "Min" : 800.0, "Max" : 1000.0 },
+							{ "Name" : "Output temperature", "Type" : "Temperature", "Min" : 80.0, "Max" : 100.0 }
+						]
+					}
+				]
+			}
+		]
+	}
+}

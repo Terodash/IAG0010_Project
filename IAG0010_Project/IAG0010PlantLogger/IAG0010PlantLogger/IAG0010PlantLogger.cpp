@@ -1,6 +1,24 @@
 // IAG0010PlantLogger.cpp : définit le point d'entrée pour l'application console.
 //
 
+/*
+typedef char CHAR;
+typedef unsigned char BYTE;
+typedef int INT;
+typedef int BOOL;
+typedef unsigned int UINT;
+typedef short int SHORT;
+typedef unsigned short int WORD;
+typedef long int LONG;
+typedef unsigned long int DWORD;
+typedef unsigned long int * LPDWORD
+typedef const wchar_t * LPCTSTR // #ifdef _UNICODE
+typedef const char * LPCTSTR // #ifndef _UNICODE
+typedef void * PVOID
+#define FALSE 0
+#define TRUE 1
+*/
+
 #include "stdafx.h"
 #include "Winsock2.h" // necessary for sockets, Windows.h is not needed.
 #include "mswsock.h"
@@ -18,7 +36,7 @@ HANDLE hCommandProcessed; // event "the main thread has finished the processing 
 HANDLE hReadKeyboard; // keyboard reading thread handle
 HANDLE hStdIn; // standard input stream handle
 WSADATA wsadata;
-DWORD Error;
+DWORD Error;// Error of creation of socket
 SOCKET hClientSocket = INVALID_SOCKET;
 sockaddr_in ClientSocketInfo;
 HANDLE hReceiveNet; //TCP/IP info reading thread
@@ -30,6 +48,8 @@ WSAEVENT AcceptEvent;
 // Prototypes
 unsigned int __stdcall ReadKeyboard(void* pArguments);
 unsigned int __stdcall ReceiveNet(void* pArguments);
+unsigned int __stdcall SendNet(void* pArguments);
+
 //void CALLBACK WorkerRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags);
 //DWORD WINAPI WorkerThread(LPVOID lpParameter);
 
@@ -39,10 +59,13 @@ unsigned int __stdcall ReceiveNet(void* pArguments);
 int _tmain(int argc, _TCHAR* argv[])
 {
 	// Initializations for multithreading
+
+	//Créations des événements qui déclenchent les différents threads
 	if (!(hCommandGot = CreateEvent(NULL, TRUE, FALSE, NULL)) ||
 		!(hStopCommandGot = CreateEvent(NULL, TRUE, FALSE, NULL)) ||
-		!(hCommandProcessed = CreateEvent(NULL, TRUE, TRUE, NULL)))
-	{
+		!(hCommandProcessed = CreateEvent(NULL, TRUE, TRUE, NULL)))// Il manque les événements gérant les fonctions "start" (activant l'envoi des données)
+	{																// "stop" (arrête l'envoi des données, casse la connexion avec l'emulateur, en recrée une pour réécouter le réseau)
+																	// "break" (arrête l'envoi des données mais maintient la connexion et attend une commande "start" pour à nouveau envoyer des données)
 		_tprintf(_T("CreateEvent() failed, error %d\n"), GetLastError());
 		return 1;
 	}
@@ -108,6 +131,11 @@ int _tmain(int argc, _TCHAR* argv[])
 			break;
 		}
 
+		if (!_tcsicmp(CommandBuf, _T("start"))) {
+			SetEvent(hReceiveNet);
+			break;
+		}
+
 		else {
 			_tprintf(_T("Command \"%s\" not recognized\n"), CommandBuf);
 			SetEvent(hCommandProcessed);
@@ -142,6 +170,7 @@ out:
 //**************************************************************************************************************
 //                          KEYBOARD READING THREAD
 //**************************************************************************************************************
+
 unsigned int __stdcall ReadKeyboard(void* pArguments) {
 	DWORD nReadChars;
 	HANDLE KeyboardEvents[2];
@@ -177,6 +206,7 @@ unsigned int __stdcall ReadKeyboard(void* pArguments) {
 //********************************************************************************************************************
 unsigned int __stdcall ReceiveNet(void* pArguments) {
 	// Preparations
+	printf("je suis passe par la");
 	WSABUF DataBuf; // Buffer for received data is a structure
 	char ArrayInBuf[2048];
 	DataBuf.buf = &ArrayInBuf[0];
@@ -248,5 +278,11 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 	}
 out:
 	WSACloseEvent(NetEvents[1]);
+	return 0;
+}
+
+unsigned int __stdcall SendNet(void* pArguments) 
+{
+	//probablement une mauvaise idée. Il est intuile de créer un thread étant donné qu'on veut simplement envoyer le mdp
 	return 0;
 }
