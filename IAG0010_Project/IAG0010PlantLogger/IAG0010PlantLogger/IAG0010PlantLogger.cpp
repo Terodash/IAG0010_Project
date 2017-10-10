@@ -1,4 +1,4 @@
-// IAG0010PlantLogger.cpp : définit le point d'entrée pour l'application console.
+// IAG0010PlantLogger.cpp : dÃ©finit le point d'entrÃ©e pour l'application console.
 //
 
 #include "stdafx.h"
@@ -48,7 +48,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	}
 
 	// Prepare keyboard, start the thread
-	hStdIn = GetStdHandle(STD_INPUT_HANDLE);	
+	hStdIn = GetStdHandle(STD_INPUT_HANDLE);
 	if (hStdIn == INVALID_HANDLE_VALUE) {
 		_tprintf(_T("GetStdHandle() failed, error %d\n"), GetLastError());
 		return 1;
@@ -81,17 +81,17 @@ int _tmain(int argc, _TCHAR* argv[])
 		ClientSocketInfo.sin_family = AF_INET;
 		ClientSocketInfo.sin_addr.s_addr = inet_addr("127.0.0.1");
 		ClientSocketInfo.sin_port = htons(1234);
-		
+
 		if (connect(hClientSocket, (SOCKADDR*)&ClientSocketInfo, sizeof(ClientSocketInfo)) == SOCKET_ERROR) {
 			_tprintf(_T("Unable to connect  the server, error %d\n"), WSAGetLastError());
 			SocketError = TRUE;
 		}
 	}
 
-	 
+
 	// Start net thread
 	if (!SocketError) {
-		if(!(hReceiveNet = (HANDLE)_beginthreadex(NULL, 0, &ReceiveNet, NULL, 0, NULL))) {
+		if (!(hReceiveNet = (HANDLE)_beginthreadex(NULL, 0, &ReceiveNet, NULL, 0, NULL))) {
 			_tprintf(_T("Unable to create socket receiving thread\n"));
 			goto out;
 		}
@@ -126,8 +126,8 @@ out:
 		CloseHandle(hReceiveNet);
 	}
 	if (hClientSocket != INVALID_SOCKET) {
-		if(shutdown(hClientSocket, SD_RECEIVE) == SOCKET_ERROR) {
-			if((Error = WSAGetLastError()) != WSAENOTCONN) 
+		if (shutdown(hClientSocket, SD_RECEIVE) == SOCKET_ERROR) {
+			if ((Error = WSAGetLastError()) != WSAENOTCONN)
 				_tprintf(_T("shutdown() failed, error %d\n"), WSAGetLastError());
 		}
 		closesocket(hClientSocket);
@@ -136,7 +136,7 @@ out:
 	CloseHandle(hStopCommandGot);
 	CloseHandle(hCommandGot);
 	CloseHandle(hCommandProcessed);
-    return 0;
+	return 0;
 }
 
 //**************************************************************************************************************
@@ -156,10 +156,10 @@ unsigned int __stdcall ReadKeyboard(void* pArguments) {
 			return 0; // Stop command got
 		else if (WaitResult == WAIT_OBJECT_0 + 1) { // command processed
 			_tprintf(_T("Insert command\n"));
-				if (!ReadConsole(hStdIn, CommandBuf, 80, &nReadChars, NULL)) {
-					_tprintf(_T("ReadConsole() failed, error %d\n"), GetLastError());
-					return 1;
-				}
+			if (!ReadConsole(hStdIn, CommandBuf, 80, &nReadChars, NULL)) {
+				_tprintf(_T("ReadConsole() failed, error %d\n"), GetLastError());
+				return 1;
+			}
 			CommandBuf[nReadChars - 2] = 0; // to get rid of \r\n
 			ResetEvent(hCommandProcessed); //hCommandProcessed to non-signaled
 			SetEvent(hCommandGot); // hCommandGot event to signaled
@@ -195,24 +195,33 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 	while (TRUE) {
 		Result = WSARecv(hClientSocket, &DataBuf, 1, &nReceivedBytes, &ReceiveFlags, &Overlapped, NULL);
 		if (Result == SOCKET_ERROR) {
-			
+
 			if (Error = WSAGetLastError() != WSA_IO_PENDING) {// Unable to continue
 				_tprintf(_T("WSARecv() failed, error %d\n"), Error);
 				goto out;
 			}
 
-			
+
 			DWORD WaitResult = WSAWaitForMultipleEvents(2, NetEvents, FALSE, WSA_INFINITE, FALSE);
 			switch (WaitResult) {
-			case WAIT_OBJECT_0: 
+			case WAIT_OBJECT_0:
 				goto out;
 			case WAIT_OBJECT_0 + 1:
 				WSAResetEvent(NetEvents[1]);
+
 				if (WSAGetOverlappedResult(hClientSocket, &Overlapped, &nReceivedBytes, FALSE, &ReceiveFlags)) {
+					int i = 0;
 					_tprintf(_T("%d bytes received\n"), nReceivedBytes);
 					_tprintf(_T("Sent data are :  %d\n"), DataBuf.buf[0]);
-					// Here should follow the processing of received data 
-					
+					// Here should follow the processing of received data
+
+					printf("\nReceived command is:\n");
+					for (i = 4; i <= 18; i = i + 2) {
+						printf("%c", ArrayInBuf[i]);
+					}
+					printf("\n");
+
+
 					break;
 				}
 				else {// Fatal problems
@@ -225,7 +234,7 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 			}
 		}
 
-		
+
 		else {
 			if (!nReceivedBytes) {
 				_tprintf(_T("Server has closed the connection\n"));
