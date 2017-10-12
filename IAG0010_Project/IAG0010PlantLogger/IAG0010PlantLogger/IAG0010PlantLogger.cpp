@@ -1,24 +1,6 @@
 // IAG0010PlantLogger.cpp : définit le point d'entrée pour l'application console.
 //
 
-/*
-typedef char CHAR;
-typedef unsigned char BYTE;
-typedef int INT;
-typedef int BOOL;
-typedef unsigned int UINT;
-typedef short int SHORT;
-typedef unsigned short int WORD;
-typedef long int LONG;
-typedef unsigned long int DWORD;
-typedef unsigned long int * LPDWORD
-typedef const wchar_t * LPCTSTR // #ifdef _UNICODE
-typedef const char * LPCTSTR // #ifndef _UNICODE
-typedef void * PVOID
-#define FALSE 0
-#define TRUE 1
-*/
-
 #include "stdafx.h"
 #include "Winsock2.h" // necessary for sockets, Windows.h is not needed.
 #include "mswsock.h"
@@ -36,11 +18,14 @@ HANDLE hCommandProcessed; // event "the main thread has finished the processing 
 HANDLE hReadKeyboard; // keyboard reading thread handle
 HANDLE hStdIn; // standard input stream handle
 WSADATA wsadata;
-DWORD Error;// Error of creation of socket
+DWORD Error;
 SOCKET hClientSocket = INVALID_SOCKET;
 sockaddr_in ClientSocketInfo;
 HANDLE hReceiveNet; //TCP/IP info reading thread
+HANDLE hSendNet; //TCP/IP info sending thread
 BOOL SocketError;
+volatile BOOL threadStop = FALSE;
+HANDLE hMutex;
 HANDLE ThreadHandle;
 DWORD ThreadId;
 WSAEVENT AcceptEvent;
@@ -50,22 +35,18 @@ unsigned int __stdcall ReadKeyboard(void* pArguments);
 unsigned int __stdcall ReceiveNet(void* pArguments);
 unsigned int __stdcall SendNet(void* pArguments);
 
-//void CALLBACK WorkerRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags);
-//DWORD WINAPI WorkerThread(LPVOID lpParameter);
-
 //****************************************************************************************************************
 //                                 MAIN THREAD
 //****************************************************************************************************************
 int _tmain(int argc, _TCHAR* argv[])
 {
-	// Initializations for multithreading
+	hMutex = CreateMutex(NULL, FALSE, NULL);
 
-	//Créations des événements qui déclenchent les différents threads
+	// Initializations for multithreading
 	if (!(hCommandGot = CreateEvent(NULL, TRUE, FALSE, NULL)) ||
 		!(hStopCommandGot = CreateEvent(NULL, TRUE, FALSE, NULL)) ||
-		!(hCommandProcessed = CreateEvent(NULL, TRUE, TRUE, NULL)))// Il manque les événements gérant les fonctions "start" (activant l'envoi des données)
-	{																// "stop" (arrête l'envoi des données, casse la connexion avec l'emulateur, en recrée une pour réécouter le réseau)
-																	// "break" (arrête l'envoi des données mais maintient la connexion et attend une commande "start" pour à nouveau envoyer des données)
+		!(hCommandProcessed = CreateEvent(NULL, TRUE, TRUE, NULL)))
+	{
 		_tprintf(_T("CreateEvent() failed, error %d\n"), GetLastError());
 		return 1;
 	}
@@ -80,6 +61,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		_tprintf(_T("SetConsoleMode() failed, error %d\n"), GetLastError());
 		return 1;
 	}
+
 	if (!(hReadKeyboard = (HANDLE)_beginthreadex(NULL, 0, &ReadKeyboard, NULL, 0, NULL))) {
 		_tprintf(_T("Unable to create keyboard thread\n"));
 		return 1;
@@ -111,11 +93,15 @@ int _tmain(int argc, _TCHAR* argv[])
 		}
 	}
 
-
 	// Start net thread
 	if (!SocketError) {
 		if (!(hReceiveNet = (HANDLE)_beginthreadex(NULL, 0, &ReceiveNet, NULL, 0, NULL))) {
 			_tprintf(_T("Unable to create socket receiving thread\n"));
+			goto out;
+		}
+
+		if (!(hSendNet = (HANDLE)_beginthreadex(NULL, 0, &SendNet, NULL, 0, NULL))) {
+			_tprintf(_T("Unable to create socket sending thread\n"));
 			goto out;
 		}
 	}
@@ -131,11 +117,67 @@ int _tmain(int argc, _TCHAR* argv[])
 			break;
 		}
 
-		if (!_tcsicmp(CommandBuf, _T("start"))) {
-			SetEvent(hReceiveNet);
+		else if (!_tcsicmp(CommandBuf, _T("Start"))) {
+			SetEvent(hCommandGot);
+			_tprintf(_T("You entered the command Start\n"));
 			break;
 		}
 
+		else if (!_tcsicmp(CommandBuf, _T("Stop"))) {
+			SetEvent(hCommandGot);
+			_tprintf(_T("You entered the command Stop\n"));
+			break;
+		}
+
+		else if (!_tcsicmp(CommandBuf, _T("Break"))) {
+			SetEvent(hCommandGot);
+			_tprintf(_T("You entered the command Break\n"));
+			break;
+		}
+
+		else if (!_tcsicmp(CommandBuf, _T("Ready"))) {
+			SetEvent(hCommandGot);
+			_tprintf(_T("You entered the command Ready\n"));
+			break;
+		}
+
+		/*else if (!_tcsicmp(CommandBuf, _T("coursework"))) {
+			SetEvent(hCommandGot);
+			nSentBytes = 10;
+			int Result1 = WSASend(hClientSocket, &DataBuf, 1, &nSentBytes, SentFlags, &Overlapped, NULL);
+				_tprintf(_T("You entered the %c\n"), ArrayInBuf[0]);
+		
+			if (Result1 == SOCKET_ERROR) {
+
+				if (Error = WSAGetLastError() != WSA_IO_PENDING) {// Unable to continue
+					_tprintf(_T("WSASend() failed, error %d\n"), Error);
+					goto out;
+				}
+
+				DWORD WaitResult = WSAWaitForMultipleEvents(2, NetEvents, FALSE, WSA_INFINITE, FALSE);
+				switch (WaitResult) {
+				case WAIT_OBJECT_0:
+					goto out;
+				case WAIT_OBJECT_0 + 1:
+					WSAResetEvent(NetEvents[1]);
+
+					if (WSAGetOverlappedResult(hClientSocket, &Overlapped, &nSentBytes, FALSE, &SentFlags)) {
+						// Here should follow the processing of received data
+						_tprintf(_T("C'est ici qu'il faut gérer"));
+						break;
+					}
+					else {// Fatal problems
+						_tprintf(_T("WSAGetOverlappedResult() failed, error %d\n"), GetLastError());
+						goto out;
+					}
+				default: // Fatal problems
+					_tprintf(_T("WSAWaitForMultipleEvents() failed, error %d\n"), WSAGetLastError());
+					goto out;
+				}
+			}
+		}
+
+		*/
 		else {
 			_tprintf(_T("Command \"%s\" not recognized\n"), CommandBuf);
 			SetEvent(hCommandProcessed);
@@ -153,6 +195,11 @@ out:
 		WaitForSingleObject(hReceiveNet, INFINITE);
 		CloseHandle(hReceiveNet);
 	}
+
+	if (hSendNet) {
+		WaitForSingleObject(hSendNet, INFINITE);
+		CloseHandle(hSendNet);
+	}
 	if (hClientSocket != INVALID_SOCKET) {
 		if (shutdown(hClientSocket, SD_RECEIVE) == SOCKET_ERROR) {
 			if ((Error = WSAGetLastError()) != WSAENOTCONN)
@@ -164,13 +211,17 @@ out:
 	CloseHandle(hStopCommandGot);
 	CloseHandle(hCommandGot);
 	CloseHandle(hCommandProcessed);
+
+	while (!threadStop)
+		Sleep(0);
+	CloseHandle(hMutex);
+
 	return 0;
 }
 
 //**************************************************************************************************************
 //                          KEYBOARD READING THREAD
 //**************************************************************************************************************
-
 unsigned int __stdcall ReadKeyboard(void* pArguments) {
 	DWORD nReadChars;
 	HANDLE KeyboardEvents[2];
@@ -184,7 +235,10 @@ unsigned int __stdcall ReadKeyboard(void* pArguments) {
 		if (WaitResult == WAIT_OBJECT_0)
 			return 0; // Stop command got
 		else if (WaitResult == WAIT_OBJECT_0 + 1) { // command processed
+			WaitForSingleObject(hMutex, INFINITE);
+			threadStop = TRUE;
 			_tprintf(_T("Insert command\n"));
+
 			if (!ReadConsole(hStdIn, CommandBuf, 80, &nReadChars, NULL)) {
 				_tprintf(_T("ReadConsole() failed, error %d\n"), GetLastError());
 				return 1;
@@ -192,21 +246,26 @@ unsigned int __stdcall ReadKeyboard(void* pArguments) {
 			CommandBuf[nReadChars - 2] = 0; // to get rid of \r\n
 			ResetEvent(hCommandProcessed); //hCommandProcessed to non-signaled
 			SetEvent(hCommandGot); // hCommandGot event to signaled
+
+
+			threadStop = FALSE;
+			ReleaseMutex(hMutex);
 		}
 		else { // waiting failed
 			_tprintf(_T("WaitForMultipleObjects() failed, error %d\n"), GetLastError());
 			return 1;
 		}
 	}
+
 	return 0;
 }
+
 
 //********************************************************************************************************************
 //                          TCP/IP INFO RECEIVING THREAD
 //********************************************************************************************************************
 unsigned int __stdcall ReceiveNet(void* pArguments) {
 	// Preparations
-	printf("je suis passe par la");
 	WSABUF DataBuf; // Buffer for received data is a structure
 	char ArrayInBuf[2048];
 	DataBuf.buf = &ArrayInBuf[0];
@@ -219,7 +278,6 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 	memset(&Overlapped, 0, sizeof(Overlapped));
 	Overlapped.hEvent = NetEvents[1] = WSACreateEvent();
 	DWORD Result, Error;
-	int n = 0;
 
 	// Receiving loop
 	while (TRUE) {
@@ -232,7 +290,10 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 			}
 
 
+			WaitForSingleObject(hMutex, INFINITE);
+			threadStop = TRUE;
 			DWORD WaitResult = WSAWaitForMultipleEvents(2, NetEvents, FALSE, WSA_INFINITE, FALSE);
+			
 			switch (WaitResult) {
 			case WAIT_OBJECT_0:
 				goto out;
@@ -240,18 +301,11 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 				WSAResetEvent(NetEvents[1]);
 
 				if (WSAGetOverlappedResult(hClientSocket, &Overlapped, &nReceivedBytes, FALSE, &ReceiveFlags)) {
-					int i = 0;
-					_tprintf(_T("%d bytes received\n"), nReceivedBytes);
-					_tprintf(_T("Sent data are :  %d\n"), DataBuf.buf[0]);
 					// Here should follow the processing of received data
-
-					printf("\nReceived command is:\n");
-					for (i = 4; i <= 18; i = i + 2) {
+					for (int i = 4; i <= 18; i = i + 2) {
 						printf("%c", ArrayInBuf[i]);
 					}
 					printf("\n");
-
-
 					break;
 				}
 				else {// Fatal problems
@@ -262,6 +316,9 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 				_tprintf(_T("WSAWaitForMultipleEvents() failed, error %d\n"), WSAGetLastError());
 				goto out;
 			}
+
+			threadStop = FALSE;
+			ReleaseMutex(hMutex);
 		}
 
 
@@ -281,8 +338,70 @@ out:
 	return 0;
 }
 
-unsigned int __stdcall SendNet(void* pArguments) 
-{
-	//probablement une mauvaise idée. Il est intuile de créer un thread étant donné qu'on veut simplement envoyer le mdp
+//********************************************************************************************************************
+//                          TCP/IP INFO SENDING THREAD
+//********************************************************************************************************************
+unsigned int __stdcall SendNet(void* pArguments) {
+
+	_tprintf(_T("On est bien entré"));
+	WSABUF DataBuf; // Buffer for sent data is a structure
+	char ArrayInBuf[2048];
+	DataBuf.buf = &ArrayInBuf[0];
+	DataBuf.len = 2048;
+	DWORD nSentBytes = 0; // Pointer to the number, in bytes, of data received by this call
+	DWORD SentFlags = 0; // Pointer to flags used to modify the behaviour of the WSARecv function call
+	HANDLE NetEvents[2];
+	NetEvents[0] = hStopCommandGot;
+	WSAOVERLAPPED Overlapped; 
+	memset(&Overlapped, 0, sizeof(Overlapped));
+	Overlapped.hEvent = NetEvents[1] = WSACreateEvent();
+	DWORD Result, Error;
+	_tprintf(_T("dfnklojnjfvo^ni"));
+	
+	while (TRUE) {
+		Result = WSASend(hClientSocket, &DataBuf, 1, &nSentBytes, SentFlags, &Overlapped, NULL);
+
+		if (Result == SOCKET_ERROR) {
+
+			if (Error = WSAGetLastError() != WSA_IO_PENDING) {// Unable to continue
+				_tprintf(_T("WSASend() failed, error %d\n"), Error);
+				goto out;
+			}
+
+			WaitForSingleObject(hMutex, INFINITE);
+			threadStop = TRUE;
+
+			DWORD WaitResult = WSAWaitForMultipleEvents(2, NetEvents, FALSE, WSA_INFINITE, FALSE);
+			switch (WaitResult) {
+			case WAIT_OBJECT_0:
+				goto out;
+			case WAIT_OBJECT_0 + 1:
+				WSAResetEvent(NetEvents[1]);
+
+				if (WSAGetOverlappedResult(hClientSocket, &Overlapped, &nSentBytes, FALSE, &SentFlags)) {
+					WaitForSingleObject(hMutex, INFINITE);
+					threadStop = TRUE;
+					
+					// Here should follow the processing of received data
+					_tprintf(_T("C'est en train de s'envoyer\n"));
+
+					threadStop = FALSE;
+					ReleaseMutex(hMutex);
+					break;
+				}
+				else {// Fatal problems
+					_tprintf(_T("WSAGetOverlappedResult() failed, error %d\n"), GetLastError());
+					goto out;
+				}
+			default: // Fatal problems
+				_tprintf(_T("WSAWaitForMultipleEvents() failed, error %d\n"), WSAGetLastError());
+				goto out;
+			}
+
+		}
+	}
+out:
+	_tprintf(_T("WSAWaitForMultipleEvents() failed, error %d\n"), WSAGetLastError());
+	WSACloseEvent(NetEvents[1]);
 	return 0;
 }
