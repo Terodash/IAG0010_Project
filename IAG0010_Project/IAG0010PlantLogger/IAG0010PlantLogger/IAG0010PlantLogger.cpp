@@ -459,7 +459,9 @@ unsigned int __stdcall SendNet(void* pArguments) {
 
 		}
 		
-			//WSAResetEvent(SentEvents[1]);
+
+		WSAResetEvent(SentEvents[1]);
+		WSAResetEvent(SentEvents[2]);
 
 
 
