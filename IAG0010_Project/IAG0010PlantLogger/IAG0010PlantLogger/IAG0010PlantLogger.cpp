@@ -62,7 +62,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	if (!(hCommandGot = CreateEvent(NULL, TRUE, FALSE, NULL)) ||
 		!(hStopCommandGot = CreateEvent(NULL, TRUE, FALSE, NULL)) ||
 		!(hCommandProcessed = CreateEvent(NULL, TRUE, TRUE, NULL)) ||
-		!(hSend = CreateEvent(NULL, TRUE, TRUE, NULL)) ||
+		!(hSend = CreateEvent(NULL, TRUE, FALSE, NULL)) ||
 		!(hConnectCommandGot = CreateEvent(NULL, TRUE, FALSE, NULL)))
 	{
 		_tprintf(_T("CreateEvent() failed, error %d\n"), GetLastError());
@@ -148,6 +148,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	while (TRUE) {
 
+		//printf("Command buffer en  main thread:");
+		//for (int j = 0; j < 20; j++) printf("%c", CommandBuf[j]);
 
 		if (WaitForSingleObject(hCommandGot, INFINITE) != WAIT_OBJECT_0) {
 			_tprintf(_T("WaitForSingleObject() failed, error %d\n"), GetLastError());
@@ -161,13 +163,13 @@ int _tmain(int argc, _TCHAR* argv[])
 			break;
 
 		}
-		else if (!_tcsicmp(CommandBuf, _T("connect"))) { //user typed "connect" command
+		/*else if (!_tcsicmp(CommandBuf, _T("connect"))) { //user typed "connect" command
 			_tprintf(_T("Command Connect accepted, nothing to do yet.\n"));
 			SetEvent(hConnectCommandGot); //user requested to connect
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
-		}
+		}*/
 
-		else if (!_tcsicmp(CommandBuf, _T("coursework"))) { //user typed "connect" command
+		else if (!_tcsicmp(CommandBuf, _T("coursework"))) { //used for test
 			_tprintf(_T("Command Connect accepted, nothing to do yet.\n"));
 			SetEvent(hConnectCommandGot); //user requested to connect
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
@@ -179,7 +181,9 @@ int _tmain(int argc, _TCHAR* argv[])
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
 		}
 
-		ResetEvent(hSend);
+		CommandBuf[0] = 'X'; //test for "resetting" the CommandBuf
+
+
 	}
 
 	// Shut down
@@ -219,7 +223,6 @@ unsigned int __stdcall ReadKeyboard(void* pArguments) {
 
 	// Reading loop
 	while (TRUE) {
-		ResetEvent(hSend);
 		WaitResult = WaitForMultipleObjects(2, KeyboardEvents, FALSE, INFINITE);
 		if (WaitResult == WAIT_OBJECT_0)
 			return 0; // Stop command got
@@ -232,9 +235,9 @@ unsigned int __stdcall ReadKeyboard(void* pArguments) {
 			CommandBuf[nReadChars - 2] = 0; // to get rid of \r\n
 			ResetEvent(hCommandProcessed); //hCommandProcessed to non-signaled
 			SetEvent(hCommandGot); // hCommandGot event to signaled
-			
-			//SetEvent(hSend);
-
+			//CommandBuf[0] = 0;
+			//CommandBuf[1] = 0;
+			//CommandBuf[2] = 0;
 		}
 		else { // waiting failed
 			_tprintf(_T("WaitForMultipleObjects() failed, error %d\n"), GetLastError());
@@ -265,12 +268,11 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 	wchar_t *DataPointer;
 	int n = 0;
 
-	ResetEvent(hSend);
-
 	//
 	// Receiving loop
 	//
 	while (TRUE) {
+
 		Result = WSARecv(hClientSocket, &DataBuf, 1, &nReceivedBytes, &ReceiveFlags, &Overlapped, NULL);
 		if (Result == SOCKET_ERROR) {
 
@@ -283,16 +285,23 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 
 			switch (WaitResult) {
 			case WAIT_OBJECT_0:		//hStopCommandGot signaled, user wants to exit
-				
+
 				goto out_receive;
+
 			case WAIT_OBJECT_0 + 1: //Overlapped.hEvent signaled, received operation is over
 				WSAResetEvent(NetEvents[1]); //To be ready for the next data package
 
-				_tprintf(_T("C'est oui 1\n"));
+				_tprintf(_T("Message received from emulator.\n"));
 
 				if (WSAGetOverlappedResult(hClientSocket, &Overlapped, &nReceivedBytes, FALSE, &ReceiveFlags)) {
 					int i = 0;
-					_tprintf(_T("%d bytes received\n"), nReceivedBytes);
+
+					_tprintf(_T("%d bytes received. "), nReceivedBytes);
+					printf("Message received is: ");
+					for (i = 4; i <= 20 - 2; i = i + 2) {
+						printf("%c", ArrayInBuf[i]);
+					}
+					printf("\n");
 					// Here should follow the processing of received data
 
 					DataPointer = (wchar_t*)(DataBuf.buf + 4);
@@ -302,15 +311,6 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 						_tprintf(_T("Identification requested...\n"));
 						SetEvent(hSendPassword);
 					}
-
-					_tprintf(_T("Received data are :  %d\n"), DataBuf.buf[0]);
-					printf("\nReceived data are:\n");
-					for (i = 4; i <= nReceivedBytes - 2; i = i + 2) {
-						printf("%c", ArrayInBuf[i]);
-					}
-					printf("\n");
-
-					//SetEvent(hSend);
 
 					break;
 				}
@@ -345,10 +345,11 @@ out_receive:
 unsigned int __stdcall SendNet(void* pArguments) {
 
 	// Initialization
-	_TCHAR message[13] = _T("  coursework"); //Message to be sent
+	//_TCHAR message[13] = _T("  coursework"); //Message to be sent
+	char message[11] = "coursework";
 	WSABUF sendDataBuf; // Buffer for sent data
-	sendDataBuf.buf = (char*)message;
-	sendDataBuf.len = 26;
+	sendDataBuf.buf = &message[0];
+	//sendDataBuf.len = 26;
 	TCHAR data[2044];
 	int dataLength=0;
 
@@ -387,7 +388,9 @@ unsigned int __stdcall SendNet(void* pArguments) {
 			goto out_send;
 
 		case WAIT_OBJECT_0 + 1:
-			_tprintf(_T("Agag +1"));
+			WSAResetEvent(SentEvents[1]);
+			//WSAResetEvent(SentEvents[2]);
+			_tprintf(_T("Agag +1 "));
 			if (Result == SOCKET_ERROR) {
 				if ((Error = WSAGetLastError()) != WSA_IO_PENDING) {
 					_tprintf(_T("Sending thread WSASend() failed, error %d\n"), Error);
@@ -399,18 +402,22 @@ unsigned int __stdcall SendNet(void* pArguments) {
 					goto out_send;
 				}
 			}
-			ResetEvent(hSend);
 
 		case WAIT_OBJECT_0 + 2:
-			_tprintf(_T("Agag +2"));
-			_tprintf(_T("Sending: "));
-			wcscpy_s(data, _T("  coursework"));
-			dataLength = sizeof(&data);
-			memcpy(sendDataBuf.buf, &dataLength, 4);
-			_tprintf(_T("%d\n"), dataLength);
-			memcpy(sendDataBuf.buf + 4, &data, dataLength);
-			sendDataBuf.len = dataLength + 4;
-			nSendBytes = sizeof(sendDataBuf.buf);
+			WSAResetEvent(SentEvents[2]);
+			WSAResetEvent(SentEvents[1]);
+			wcscpy_s(data, _T("coursework"));
+			dataLength = sizeof("coursework");
+
+			//memcpy(sendDataBuf.buf, &dataLength, 4);
+			//sendDataBuf.len = dataLength;
+
+			_tprintf(_T("Sending : %s and size is: %d\n"), data, dataLength);
+			//memcpy(&sendDataBuf.buf + 4, &data, dataLength);
+			//sendDataBuf.len = dataLength + 4;
+			sendDataBuf.len = dataLength;
+			//nSendBytes = sizeof(sendDataBuf.buf);
+			nSendBytes = sendDataBuf.len;
 			Result = WSASend(hClientSocket,
 				&sendDataBuf,
 				1,  // no comments here
@@ -418,16 +425,17 @@ unsigned int __stdcall SendNet(void* pArguments) {
 				SendFlags, // no comments here
 				&sendOverlapped,
 				NULL);  // no comments here
-			ResetEvent(hSend);
+
 			break;
 
 		default: // Fatal problems
 			_tprintf(_T("Sending thread WSAWaitForMultipleEvents() failed, error %d\n"), WSAGetLastError());
-			
+
 			goto out_send;
 
 		}
 
+			//WSAResetEvent(SentEvents[1]);
 
 
 
@@ -449,7 +457,7 @@ unsigned int __stdcall SendNet(void* pArguments) {
 		if (waitResult == WSA_WAIT_FAILED) {
 		_tprintf(_T("WSAWaitForMultipleEvents() failed for WSASendCompletedEvents in SendNet thread, error %d\n"), WSAGetLastError());
 		goto out_send;
-		}		      
+		}
 
 		if (waitResult == WAIT_OBJECT_0) // stopEvent raised.
 		break;
@@ -511,6 +519,5 @@ unsigned int __stdcall SendNet(void* pArguments) {
 out_send:
 	_tprintf(_T("WSAWaitForMultipleEvents() failed, error %d\n"), WSAGetLastError());
 	WSACloseEvent(SentEvents[1]);
-	ResetEvent(hSend);
 	return 0;
 }
