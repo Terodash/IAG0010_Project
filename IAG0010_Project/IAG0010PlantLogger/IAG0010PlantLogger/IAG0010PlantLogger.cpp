@@ -285,7 +285,7 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 
 			switch (WaitResult) {
 			case WAIT_OBJECT_0:		//hStopCommandGot signaled, user wants to exit
-
+				
 				goto out_receive;
 
 			case WAIT_OBJECT_0 + 1: //Overlapped.hEvent signaled, received operation is over
@@ -295,12 +295,12 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 
 				if (WSAGetOverlappedResult(hClientSocket, &Overlapped, &nReceivedBytes, FALSE, &ReceiveFlags)) {
 					int i = 0;
-
+					
 					_tprintf(_T("%d bytes received. "), nReceivedBytes);
 					printf("Message received is: ");
-					for (i = 4; i <= 20 - 2; i = i + 2) {
+					for (i = 4; i <= nReceivedBytes - 2; i = i + 2) {
 						printf("%c", ArrayInBuf[i]);
-					}
+					}	
 					printf("\n");
 					// Here should follow the processing of received data
 
@@ -346,10 +346,10 @@ unsigned int __stdcall SendNet(void* pArguments) {
 
 	// Initialization
 	//_TCHAR message[13] = _T("  coursework"); //Message to be sent
-	char message[11] = "coursework";
+	char message[50] = "  coursework";
 	WSABUF sendDataBuf; // Buffer for sent data
-	sendDataBuf.buf = &message[0];
-	//sendDataBuf.len = 26;
+	sendDataBuf.buf = &message[0];                         //plus tard: mettre =&ArrayInBuf[0]
+	sendDataBuf.len = 2048;
 	TCHAR data[2044];
 	int dataLength=0;
 
@@ -404,20 +404,44 @@ unsigned int __stdcall SendNet(void* pArguments) {
 			}
 
 		case WAIT_OBJECT_0 + 2:
-			WSAResetEvent(SentEvents[2]);
-			WSAResetEvent(SentEvents[1]);
+			//WSAResetEvent(SentEvents[2]);
+			//WSAResetEvent(SentEvents[1]);
 			wcscpy_s(data, _T("coursework"));
 			dataLength = sizeof("coursework");
-
+			
 			//memcpy(sendDataBuf.buf, &dataLength, 4);
 			//sendDataBuf.len = dataLength;
-
+			
 			_tprintf(_T("Sending : %s and size is: %d\n"), data, dataLength);
-			//memcpy(&sendDataBuf.buf + 4, &data, dataLength);
+			
+			/////
+			
+			memcpy(sendDataBuf.buf, &dataLength, 4);
+			/*memcpy(sendDataBuf.buf, "0", 1);
+			memcpy(sendDataBuf.buf + 1, "0", 1);
+			memcpy(sendDataBuf.buf + 2, "2", 1);
+			memcpy(sendDataBuf.buf + 3, "6", 1);*/
+
+			sendDataBuf.buf[0] = 26;
+
+			memcpy(sendDataBuf.buf + 4, data, dataLength+8);
+			
+			//memcpy(sendDataBuf.buf + 24, "0", 1);
+			//memcpy(sendDataBuf.buf + 25, "0", 1);
+
+
+			sendDataBuf.len = sizeof("coursework")*2 + 4;
+			
 			//sendDataBuf.len = dataLength + 4;
-			sendDataBuf.len = dataLength;
-			//nSendBytes = sizeof(sendDataBuf.buf);
-			nSendBytes = sendDataBuf.len;
+			/////
+			
+
+			nSendBytes = (sizeof(sendDataBuf.buf))-1 ;
+			
+			//nSendBytes = (sizeof(sendDataBuf.buf)) * 2 + 4 ;
+			//nSendBytes = 26;
+
+
 			Result = WSASend(hClientSocket,
 				&sendDataBuf,
 				1,  // no comments here
@@ -425,16 +449,16 @@ unsigned int __stdcall SendNet(void* pArguments) {
 				SendFlags, // no comments here
 				&sendOverlapped,
 				NULL);  // no comments here
-
+		
 			break;
 
 		default: // Fatal problems
 			_tprintf(_T("Sending thread WSAWaitForMultipleEvents() failed, error %d\n"), WSAGetLastError());
-
+			
 			goto out_send;
 
 		}
-
+		
 			//WSAResetEvent(SentEvents[1]);
 
 
@@ -457,7 +481,7 @@ unsigned int __stdcall SendNet(void* pArguments) {
 		if (waitResult == WSA_WAIT_FAILED) {
 		_tprintf(_T("WSAWaitForMultipleEvents() failed for WSASendCompletedEvents in SendNet thread, error %d\n"), WSAGetLastError());
 		goto out_send;
-		}
+		}		      
 
 		if (waitResult == WAIT_OBJECT_0) // stopEvent raised.
 		break;
