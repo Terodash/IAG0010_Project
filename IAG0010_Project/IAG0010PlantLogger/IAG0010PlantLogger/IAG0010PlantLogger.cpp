@@ -1,6 +1,3 @@
-// IAG0010PlantLogger.cpp : définit le point d'entrée pour l'application console.
-//
-
 #include "stdafx.h"
 #include "Winsock2.h" // necessary for sockets, Windows.h is not needed.
 #include "mswsock.h"
@@ -40,12 +37,6 @@ HANDLE ReceivedEvents[2];
 
 TCHAR CommandBuf[81];		//Buffer for the command written by the user
 
-							//HANDLE ThreadHandle;
-							//DWORD ThreadId;
-							//WSAEVENT AcceptEvent;
-							//void CALLBACK WorkerRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags);
-							//DWORD WINAPI WorkerThread(LPVOID lpParameter);
-
 							// Prototypes of our threads
 unsigned int __stdcall ReadKeyboard(void* pArguments);
 unsigned int __stdcall ReceiveNet(void* pArguments);
@@ -71,11 +62,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	WSAReceiveCompletedEvents[0] = hStopCommandGot;
 	ReceivedEvents[0] = hStopCommandGot;
-
 	memset(&receiveOverlapped, 0, sizeof receiveOverlapped);
-
 	receiveOverlapped.hEvent = WSAReceiveCompletedEvents[1] = WSACreateEvent();
-
 	ReceivedEvents[1] = CreateEvent(NULL, TRUE, FALSE, NULL);
 
 	if (!WSAReceiveCompletedEvents[1] || !ReceivedEvents[1]) {
@@ -139,36 +127,25 @@ int _tmain(int argc, _TCHAR* argv[])
 			goto out_main;
 		}
 		if (!(hReceiveNet = (HANDLE)_beginthreadex(NULL, 0, &SendNet, NULL, 0, NULL))) {
-		_tprintf(_T("Unable to create socket sending thread\n"));
-		goto out_main;
+			_tprintf(_T("Unable to create socket sending thread\n"));
+			goto out_main;
 		}
 	}
 
-
-
 	while (TRUE) {
-
-		//printf("Command buffer en  main thread:");
-		//for (int j = 0; j < 20; j++) printf("%c", CommandBuf[j]);
-
 		if (WaitForSingleObject(hCommandGot, INFINITE) != WAIT_OBJECT_0) {
 			_tprintf(_T("WaitForSingleObject() failed, error %d\n"), GetLastError());
 			goto out_main;
 		}
-
 		ResetEvent(hCommandGot);
+		
 		if (!_tcsicmp(CommandBuf, _T("exit"))) { //user typed "exit" command
 			_tprintf(_T("Terminating...\n"));
 			SetEvent(hStopCommandGot);
 			break;
 
-		}
-		/*else if (!_tcsicmp(CommandBuf, _T("connect"))) { //user typed "connect" command
-			_tprintf(_T("Command Connect accepted, nothing to do yet.\n"));
-			SetEvent(hConnectCommandGot); //user requested to connect
-			SetEvent(hCommandProcessed); //keyboard thread can continue working
-		}*/
-
+		} 
+		
 		else if (!_tcsicmp(CommandBuf, _T("coursework"))) { //used for test
 			_tprintf(_T("Command Connect accepted, nothing to do yet.\n"));
 			SetEvent(hConnectCommandGot); //user requested to connect
@@ -181,7 +158,7 @@ int _tmain(int argc, _TCHAR* argv[])
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
 		}
 
-		CommandBuf[0] = 'X'; //test for "resetting" the CommandBuf
+		//CommandBuf[0] = 'X'; //test for "resetting" the CommandBuf
 
 
 	}
@@ -235,9 +212,6 @@ unsigned int __stdcall ReadKeyboard(void* pArguments) {
 			CommandBuf[nReadChars - 2] = 0; // to get rid of \r\n
 			ResetEvent(hCommandProcessed); //hCommandProcessed to non-signaled
 			SetEvent(hCommandGot); // hCommandGot event to signaled
-			//CommandBuf[0] = 0;
-			//CommandBuf[1] = 0;
-			//CommandBuf[2] = 0;
 		}
 		else { // waiting failed
 			_tprintf(_T("WaitForMultipleObjects() failed, error %d\n"), GetLastError());
@@ -272,7 +246,6 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 	// Receiving loop
 	//
 	while (TRUE) {
-
 		Result = WSARecv(hClientSocket, &DataBuf, 1, &nReceivedBytes, &ReceiveFlags, &Overlapped, NULL);
 		if (Result == SOCKET_ERROR) {
 
@@ -285,7 +258,7 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 
 			switch (WaitResult) {
 			case WAIT_OBJECT_0:		//hStopCommandGot signaled, user wants to exit
-				
+
 				goto out_receive;
 
 			case WAIT_OBJECT_0 + 1: //Overlapped.hEvent signaled, received operation is over
@@ -295,15 +268,14 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 
 				if (WSAGetOverlappedResult(hClientSocket, &Overlapped, &nReceivedBytes, FALSE, &ReceiveFlags)) {
 					int i = 0;
-					
+
 					_tprintf(_T("%d bytes received. "), nReceivedBytes);
 					printf("Message received is: ");
 					for (i = 4; i <= nReceivedBytes - 2; i = i + 2) {
 						printf("%c", ArrayInBuf[i]);
-					}	
+					}
 					printf("\n");
-					// Here should follow the processing of received data
-
+					
 					DataPointer = (wchar_t*)(DataBuf.buf + 4);
 
 					if (!wcscmp(DataPointer, identifier)) //We have received an identification request from the Emulator
@@ -311,7 +283,6 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 						_tprintf(_T("Identification requested...\n"));
 						SetEvent(hSendPassword);
 					}
-
 					break;
 				}
 				else {// Fatal problems
@@ -345,13 +316,12 @@ out_receive:
 unsigned int __stdcall SendNet(void* pArguments) {
 
 	// Initialization
-	//_TCHAR message[13] = _T("  coursework"); //Message to be sent
 	char message[50] = "  coursework";
 	WSABUF sendDataBuf; // Buffer for sent data
 	sendDataBuf.buf = &message[0];                         //plus tard: mettre =&ArrayInBuf[0]
 	sendDataBuf.len = 2048;
-	TCHAR data[2044];
-	int dataLength=0;
+	CHAR data[2044];
+	int dataLength = 0;
 
 	DWORD nSendBytes = 0; // Pointer to the number, in bytes, of data sent by this call
 	DWORD SendFlags = 0; // Pointer to flags used to modify the behaviour of the WSASend function call
@@ -364,22 +334,9 @@ unsigned int __stdcall SendNet(void* pArguments) {
 	memset(&sendOverlapped, 0, sizeof sendOverlapped);
 	sendOverlapped.hEvent = SentEvents[1] = WSACreateEvent();
 	SentEvents[2] = hSend;
-
-	//HANDLE NetEvents[2];
-	//NetEvents[0] = hStopCommandGot;
-
-	//memset(&sendOverlapped, 0, sizeof(sendOverlapped));
-	//sendOverlapped.hEvent = NetEvents[1] = WSACreateEvent();
 	DWORD Error, Result;
 
-	//WSAWaitForMultipleEvents(2, ReceivedEvents, false, WSA_INFINITE, false);
-	//WSAResetEvent(ReceivedEvents[1]);
-
-	//
-	//Sending loop
-	//
 	while (TRUE) {
-
 		waitResult = WSAWaitForMultipleEvents(3, SentEvents, FALSE, WSA_INFINITE, FALSE); //Waiting for data
 		switch (waitResult) {
 
@@ -389,8 +346,6 @@ unsigned int __stdcall SendNet(void* pArguments) {
 
 		case WAIT_OBJECT_0 + 1:
 			WSAResetEvent(SentEvents[1]);
-			//WSAResetEvent(SentEvents[2]);
-			_tprintf(_T("Agag +1 "));
 			if (Result == SOCKET_ERROR) {
 				if ((Error = WSAGetLastError()) != WSA_IO_PENDING) {
 					_tprintf(_T("Sending thread WSASend() failed, error %d\n"), Error);
@@ -404,143 +359,41 @@ unsigned int __stdcall SendNet(void* pArguments) {
 			}
 
 		case WAIT_OBJECT_0 + 2:
-			//WSAResetEvent(SentEvents[2]);
-			//WSAResetEvent(SentEvents[1]);
-			wcscpy_s(data, _T("coursework"));
+			/*wcscpy_s(data, _T("coursework"));
 			dataLength = sizeof("coursework");
-			
-			//memcpy(sendDataBuf.buf, &dataLength, 4);
-			//sendDataBuf.len = dataLength;
-			
 			_tprintf(_T("Sending : %s and size is: %d\n"), data, dataLength);
-			
-			/////
-			
 			memcpy(sendDataBuf.buf, &dataLength, 4);
-			/*memcpy(sendDataBuf.buf, "0", 1);
-			memcpy(sendDataBuf.buf + 1, "0", 1);
-			memcpy(sendDataBuf.buf + 2, "2", 1);
-			memcpy(sendDataBuf.buf + 3, "6", 1);*/
-
 			sendDataBuf.buf[0] = 26;
-
-			memcpy(sendDataBuf.buf + 4, data, dataLength+8);
-			
-			//memcpy(sendDataBuf.buf + 24, "0", 1);
-			//memcpy(sendDataBuf.buf + 25, "0", 1);
-
-
+			memcpy(sendDataBuf.buf + 4, data, dataLength + 8);
 			sendDataBuf.len = sizeof("coursework")*2 + 4;
+			nSendBytes = (sizeof(sendDataBuf.buf)) - 1;
+			Result = WSASend(hClientSocket, &sendDataBuf, 1, &nSendBytes, SendFlags, &sendOverlapped, NULL);
+			*/
 			
-			//sendDataBuf.len = dataLength + 4;
-			/////
+			strcpy(data, (char *)CommandBuf);
+			_tprintf(_T("Sending : %s\n"), (char *)CommandBuf);
+			//dataLength = strlen((char *)CommandBuf);
+			dataLength = wcslen(CommandBuf) * 2 + 6;
+			_tprintf(_T("size is: %d\n"), dataLength);
+			memcpy(sendDataBuf.buf, &dataLength, 4);
+			sendDataBuf.buf[0] = dataLength;
+			memcpy(sendDataBuf.buf + 4, (char *)CommandBuf, 5 * dataLength);
+									
+			sendDataBuf.len = wcslen(CommandBuf) * 2 + 6;
+			nSendBytes = sendDataBuf.len;
+
+			//nSendBytes = (sizeof(sendDataBuf.buf)) - 1;
+			Result = WSASend(hClientSocket, &sendDataBuf, 1, &nSendBytes, SendFlags, &sendOverlapped, NULL);
 			
-
-			nSendBytes = (sizeof(sendDataBuf.buf))-1 ;
 			
-			//nSendBytes = (sizeof(sendDataBuf.buf)) * 2 + 4 ;
-			//nSendBytes = 26;
-
-
-			Result = WSASend(hClientSocket,
-				&sendDataBuf,
-				1,  // no comments here
-				&nSendBytes,
-				SendFlags, // no comments here
-				&sendOverlapped,
-				NULL);  // no comments here
-		
 			break;
 
 		default: // Fatal problems
 			_tprintf(_T("Sending thread WSAWaitForMultipleEvents() failed, error %d\n"), WSAGetLastError());
-			
 			goto out_send;
-
 		}
-		
-
 		WSAResetEvent(SentEvents[1]);
 		WSAResetEvent(SentEvents[2]);
-
-
-
-
-
-
-
-
-
-
-
-		/*if (WSASend(hClientSocket, &sendDataBuf, 1, &nSendBytes, SendFlags, &sendOverlapped, NULL) == SOCKET_ERROR){
-		if (Error = WSAGetLastError() != WSA_IO_PENDING) { // Unable to continue
-		_tprintf(_T("WSASend() failed, error %d\n"), Error);
-		goto out_send;
-		}
-
-		waitResult = WSAWaitForMultipleEvents(2, WSASendCompletedEvents, FALSE, WSA_INFINITE, FALSE);
-		if (waitResult == WSA_WAIT_FAILED) {
-		_tprintf(_T("WSAWaitForMultipleEvents() failed for WSASendCompletedEvents in SendNet thread, error %d\n"), WSAGetLastError());
-		goto out_send;
-		}		      
-
-		if (waitResult == WAIT_OBJECT_0) // stopEvent raised.
-		break;
-
-		if (!WSAGetOverlappedResult(hClientSocket, &sendOverlapped, &nSendBytes, false, &SendFlags)) {
-		_tprintf(_T("WSAGetOverlappedResult(&sendOverlapped) failed, error %d\n"), GetLastError());
-		goto out_send;
-		}
-		}
-		else
-		{
-		if (!nSendBytes) {
-		_tprintf(_T("Server has closed the connection\n"));
-		goto out_send;
-		}
-		}
-
-		//
-		//Event management and synchronization
-		//
-		WSAResetEvent(WSASendCompletedEvents[1]);
-		SetEvent(SentEvents[1]);
-		waitResult = WSAWaitForMultipleEvents(2, ReceivedEvents, false, WSA_INFINITE, false);
-
-		if (waitResult == WSA_WAIT_FAILED) {
-		_tprintf(_T("WSAWaitForMultipleEvents() failed for ReceivedEvents in SendNet thread, error %d\n"), WSAGetLastError());
-		goto out_send;
-		}
-
-		if (waitResult == WAIT_OBJECT_0)
-		break; // stopEvent raised
-		ResetEvent(ReceivedEvents[1]);
-
-		/*switch (waitResult) {
-		case WAIT_OBJECT_0:
-		goto out_send;
-
-		case WAIT_OBJECT_0 + 1:
-		WSAResetEvent(WSASendCompletedEvents[1]);
-
-		if (WSAGetOverlappedResult(hClientSocket, &sendOverlapped, &nSendBytes, FALSE, &SendFlags)) {
-		// Here should follow the processing of sending data
-		_tprintf(_T("C'est en train de s'envoyer\n"));
-		break;
-		}
-		else {// Fatal problems
-		_tprintf(_T("WSAGetOverlappedResult() failed, error %d\n"), GetLastError());
-		goto out_send;
-		}
-
-		default: // Fatal problems
-		_tprintf(_T("WSAWaitForMultipleEvents() failed, error %d\n"), WSAGetLastError());
-		goto out_send;
-		}*/
-
-
-
 	}
 out_send:
 	_tprintf(_T("WSAWaitForMultipleEvents() failed, error %d\n"), WSAGetLastError());
