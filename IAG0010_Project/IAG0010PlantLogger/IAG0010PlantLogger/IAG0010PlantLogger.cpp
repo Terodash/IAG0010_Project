@@ -36,7 +36,7 @@ HANDLE ReceivedEvents[2];
 
 
 TCHAR CommandBuf[81];		//Buffer for the command written by the user
-
+BOOL startOK = FALSE;
 							// Prototypes of our threads
 unsigned int __stdcall ReadKeyboard(void* pArguments);
 unsigned int __stdcall ReceiveNet(void* pArguments);
@@ -151,6 +151,13 @@ int _tmain(int argc, _TCHAR* argv[])
 			SetEvent(hConnectCommandGot); //user requested to connect
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
 			SetEvent(hSend);
+		}
+		
+		else if (!_tcsicmp(CommandBuf, _T("Start"))) { //used for test
+			_tprintf(_T("Command Start accepted.\n"));
+			SetEvent(hCommandProcessed); //keyboard thread can continue working
+			SetEvent(hSend);
+			startOK = TRUE;
 		}
 
 		else {
@@ -271,17 +278,75 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 
 					_tprintf(_T("%d bytes received. "), nReceivedBytes);
 					printf("Message received is: ");
-					for (i = 4; i <= nReceivedBytes - 2; i = i + 2) {
-						printf("%c", ArrayInBuf[i]);
-					}
-					printf("\n");
 					
-					DataPointer = (wchar_t*)(DataBuf.buf + 4);
+					if (startOK == TRUE) {
+						printf("Number of channels : %d\n", ArrayInBuf[4]);
+						printf("Number of of points in the channel 1 : %d\n", ArrayInBuf[8]);
+						for(i=12;i<42;i++)// que faire du bit 42 à 50 ?
+							_tprintf(_T("%c"), ArrayInBuf[i]);
+						for (i = 42; i<50; i++)// que faire du bit 42 à 50 ?
+							wprintf(_T("%e"), ArrayInBuf[i]); 
+						printf("\n");
 
-					if (!wcscmp(DataPointer, identifier)) //We have received an identification request from the Emulator
-					{
-						_tprintf(_T("Identification requested...\n"));
-						SetEvent(hSendPassword);
+						for (i = 50; i<78; i++)
+							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf("\n");
+						
+
+						for (i = 85; i<111; i++)
+							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf("\n");
+
+						for (i = 117; i<137; i++)
+							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf("\n");
+
+						for (i = 143; i<175; i++)
+							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf("\n");
+
+						for (i = 179; i<200; i++)
+							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf("\n");
+
+						for (i = 212; i<221; i++)
+							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf("\n");
+
+						for (i = 221; i<242; i++)
+							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf("\n");
+
+						for (i = 248; i<269; i++)
+							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf("\n");
+
+						for (i = 279; i<289; i++)
+							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf("\n");
+
+						for (i = 289; i<307; i++)
+							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf("\n");
+
+						for (i = 315; i<334; i++)
+							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf("\n");
+					}
+					
+					else {
+						for (i = 4; i <= nReceivedBytes - 2; i = i + 2) {
+							printf("%c", ArrayInBuf[i]);
+						}
+						printf("\n");
+
+						DataPointer = (wchar_t*)(DataBuf.buf + 4);
+
+						if (!wcscmp(DataPointer, identifier)) //We have received an identification request from the Emulator
+						{
+							_tprintf(_T("Identification requested...\n"));
+							SetEvent(hSendPassword);
+						}
 					}
 					break;
 				}
