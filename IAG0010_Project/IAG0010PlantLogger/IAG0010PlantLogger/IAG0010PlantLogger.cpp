@@ -280,61 +280,108 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 					printf("Message received is: ");
 					
 					if (startOK == TRUE) {
-						printf("Number of channels : %d\n", ArrayInBuf[4]);
-						printf("Number of of points in the channel 1 : %d\n", ArrayInBuf[8]);
-						for(i=12;i<42;i++)// que faire du bit 42 à 50 ?
+						double measurement;
+						//printf("Number of channels : %d\n", ArrayInBuf[4]);
+						//printf("Number of of points in the channel 1 : %d\n", ArrayInBuf[8]);
+						printf("\n\nMeasurement results:\n");
+
+						/* Extractor */
+						for (i = 12; i < 21; i++)
 							_tprintf(_T("%c"), ArrayInBuf[i]);
-						for (i = 42; i<50; i++)// que faire du bit 42 à 50 ?
-							wprintf(_T("%e"), ArrayInBuf[i]); 
+						printf(":\n");
+
+						/* Input Solution Flow */
+						for (i = 22; i < 41; i++)
+							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf(": ");
+						memcpy(&measurement, &ArrayInBuf[42], sizeof(double));
+						_tprintf(_T("%.7fm%c/s"), measurement, 252);
 						printf("\n");
 
-						for (i = 50; i<78; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf("\n");
+						/* Input Solution Temperature */
+						for (i = 50; i<76; i++)
+							_tprintf(_T("%c"), ArrayInBuf[i]);						
+						printf(": ");
+						memcpy(&measurement, &ArrayInBuf[77], sizeof(double));
+						_tprintf(_T("%2.4f%cC"), measurement, 248);
+						printf("\n");						
 						
-
-						for (i = 85; i<111; i++)
+						/* Input Solution Pressure */
+						for (i = 85; i<108; i++)
 							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf(": "); 
+						memcpy(&measurement, &ArrayInBuf[109], sizeof(double));
+						_tprintf(_T("%1.5fatm"), measurement);
 						printf("\n");
 
-						for (i = 117; i<137; i++)
+						/* Input Solution pH */
+						for (i = 117; i<134; i++)
 							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf(": ");
+						memcpy(&measurement, &ArrayInBuf[135], sizeof(double));
+						_tprintf(_T("%1.5f"), measurement);
 						printf("\n");
 
-						for (i = 143; i<175; i++)
+						/* Extracted Product concentration */
+						for (i = 143; i<174; i++)
 							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf(": ");
+						memcpy(&measurement, &ArrayInBuf[175], sizeof(int));
+						_tprintf(_T("%d"), measurement);
+						printf("%%\n");
+
+						/* Extracted Product pH */
+						for (i = 179; i<199; i++)
+							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf(": ");
+						memcpy(&measurement, &ArrayInBuf[200], sizeof(double));
+						_tprintf(_T("%1.5f"), measurement);
 						printf("\n");
 
-						for (i = 179; i<200; i++)
+						/* Oxidizer */
+						for (i = 212; i<220; i++)
 							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf(":\n");
+
+						/* Input Air Pressure */
+						for (i = 221; i<239; i++)
+							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf(": ");
+						memcpy(&measurement, &ArrayInBuf[240], sizeof(double));
+						_tprintf(_T("%1.6fatm"), measurement);
 						printf("\n");
 
-						for (i = 212; i<221; i++)
+						/* Output Liquid Flow*/
+						for (i = 248; i<266; i++)
 							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf(": "); 
+						memcpy(&measurement, &ArrayInBuf[267], sizeof(double));
+						_tprintf(_T("%1.5fm%c/s"), measurement, 252);
 						printf("\n");
 
-						for (i = 221; i<242; i++)
+						/* Separator */
+						for (i = 279; i<288; i++)
 							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf(":\n");
+
+						/* Input Liquid Flow */
+						for (i = 289; i<306; i++)
+							_tprintf(_T("%c"), ArrayInBuf[i]);
+						printf(": "); 
+						memcpy(&measurement, &ArrayInBuf[307], sizeof(double));
+						_tprintf(_T("%1.6fm%c/s"), measurement, 252);
 						printf("\n");
 
-						for (i = 248; i<269; i++)
+						/* Disulfid on output */
+						for (i = 315; i<333; i++)
 							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf("\n");
-
-						for (i = 279; i<289; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf("\n");
-
-						for (i = 289; i<307; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf("\n");
-
-						for (i = 315; i<334; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf("\n");
+						printf(": ");
+						memcpy(&measurement, &ArrayInBuf[334], sizeof(int));
+						_tprintf(_T("%d"), measurement);
+						printf("%%\n");
 					}
 					
-					else {
+					else if (sendConnectionNotAccepted){
 						for (i = 4; i <= nReceivedBytes - 2; i = i + 2) {
 							printf("%c", ArrayInBuf[i]);
 						}
