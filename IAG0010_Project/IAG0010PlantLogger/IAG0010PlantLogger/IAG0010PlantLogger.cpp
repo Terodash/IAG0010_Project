@@ -548,7 +548,6 @@ const char * displayAndWrite(char *data) {
 				sprintf(stringMeasurements, "%d %%\n", measurement);
 				strcpy(dataToWrite, stringMeasurements);
 				writeToFile(dataToWrite, file);
-				writeToFile(dataToWrite, file);
 			}
 			else if (!strcmp(pointName, "Input solution pH") ||
 				!strcmp(pointName, "Extracted product pH")) {
