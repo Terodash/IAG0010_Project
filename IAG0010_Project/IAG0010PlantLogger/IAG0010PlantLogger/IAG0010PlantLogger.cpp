@@ -15,6 +15,7 @@ DWORD Error;
 SOCKET hClientSocket = INVALID_SOCKET;
 sockaddr_in ClientSocketInfo;
 BOOL SocketError;
+BOOL sendConnectionNotAccepted = TRUE;
 
 //Events
 HANDLE hCommandGot;			// "User typed a command"
@@ -37,7 +38,7 @@ HANDLE ReceivedEvents[2];
 
 TCHAR CommandBuf[81];		//Buffer for the command written by the user
 BOOL startOK = FALSE;
-							// Prototypes of our threads
+// Prototypes of our threads
 unsigned int __stdcall ReadKeyboard(void* pArguments);
 unsigned int __stdcall ReceiveNet(void* pArguments);
 unsigned int __stdcall SendNet(void* pArguments);
@@ -138,26 +139,36 @@ int _tmain(int argc, _TCHAR* argv[])
 			goto out_main;
 		}
 		ResetEvent(hCommandGot);
-		
+
 		if (!_tcsicmp(CommandBuf, _T("exit"))) { //user typed "exit" command
 			_tprintf(_T("Terminating...\n"));
 			SetEvent(hStopCommandGot);
 			break;
 
-		} 
-		
-		else if (!_tcsicmp(CommandBuf, _T("coursework"))) { //used for test
-			_tprintf(_T("Command Connect accepted, nothing to do yet.\n"));
+		}
+
+		else if ((!_tcsicmp(CommandBuf, _T("connect")))/*&&(!connectOK)*/) { //used for test
+			_tprintf(_T("Command Connect accepted\n"));
+			//connectOK = TRUE;//pas sur -> mieux si on le gère dans l'envoi.
+			wcscpy(CommandBuf, _T("coursework"));
 			SetEvent(hConnectCommandGot); //user requested to connect
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
 			SetEvent(hSend);
 		}
-		
-		else if (!_tcsicmp(CommandBuf, _T("Start"))) { //used for test
+
+		else if (!_tcsicmp(CommandBuf, _T("start"))) { //used for test
 			_tprintf(_T("Command Start accepted.\n"));
+			wcscpy(CommandBuf, _T("Start"));
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
 			SetEvent(hSend);
 			startOK = TRUE;
+		}
+
+		else if (!_tcsicmp(CommandBuf, _T("break"))) { //used for test
+			_tprintf(_T("Command Break accepted.\n"));
+			wcscpy(CommandBuf, _T("Break"));
+			SetEvent(hCommandProcessed); //keyboard thread can continue working
+			SetEvent(hSend);
 		}
 
 		else {
@@ -216,6 +227,7 @@ unsigned int __stdcall ReadKeyboard(void* pArguments) {
 				_tprintf(_T("ReadConsole() failed, error %d\n"), GetLastError());
 				return 1;
 			}
+			printf("\n");
 			CommandBuf[nReadChars - 2] = 0; // to get rid of \r\n
 			ResetEvent(hCommandProcessed); //hCommandProcessed to non-signaled
 			SetEvent(hCommandGot); // hCommandGot event to signaled
@@ -276,9 +288,9 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 				if (WSAGetOverlappedResult(hClientSocket, &Overlapped, &nReceivedBytes, FALSE, &ReceiveFlags)) {
 					int i = 0;
 
-					_tprintf(_T("%d bytes received. "), nReceivedBytes);
+					_tprintf(_T("%d bytes received\n"), nReceivedBytes);
 					printf("Message received is: ");
-					
+
 					if (startOK == TRUE) {
 						double measurement;
 						//printf("Number of channels : %d\n", ArrayInBuf[4]);
@@ -300,16 +312,16 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 
 						/* Input Solution Temperature */
 						for (i = 50; i<76; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);						
+							_tprintf(_T("%c"), ArrayInBuf[i]);
 						printf(": ");
 						memcpy(&measurement, &ArrayInBuf[77], sizeof(double));
 						_tprintf(_T("%2.4f%cC"), measurement, 248);
-						printf("\n");						
-						
+						printf("\n");
+
 						/* Input Solution Pressure */
 						for (i = 85; i<108; i++)
 							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf(": "); 
+						printf(": ");
 						memcpy(&measurement, &ArrayInBuf[109], sizeof(double));
 						_tprintf(_T("%1.5fatm"), measurement);
 						printf("\n");
@@ -327,7 +339,7 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 							_tprintf(_T("%c"), ArrayInBuf[i]);
 						printf(": ");
 						memcpy(&measurement, &ArrayInBuf[175], sizeof(int));
-						_tprintf(_T("%d"), measurement);
+						_tprintf(_T("%lf"), measurement);
 						printf("%%\n");
 
 						/* Extracted Product pH */
@@ -354,7 +366,7 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 						/* Output Liquid Flow*/
 						for (i = 248; i<266; i++)
 							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf(": "); 
+						printf(": ");
 						memcpy(&measurement, &ArrayInBuf[267], sizeof(double));
 						_tprintf(_T("%1.5fm%c/s"), measurement, 252);
 						printf("\n");
@@ -367,7 +379,7 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 						/* Input Liquid Flow */
 						for (i = 289; i<306; i++)
 							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf(": "); 
+						printf(": ");
 						memcpy(&measurement, &ArrayInBuf[307], sizeof(double));
 						_tprintf(_T("%1.6fm%c/s"), measurement, 252);
 						printf("\n");
@@ -377,12 +389,12 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 							_tprintf(_T("%c"), ArrayInBuf[i]);
 						printf(": ");
 						memcpy(&measurement, &ArrayInBuf[334], sizeof(int));
-						_tprintf(_T("%d"), measurement);
+						_tprintf(_T("%lf"), measurement);
 						printf("%%\n");
 					}
-					
-					else if (sendConnectionNotAccepted){
-						for (i = 4; i <= nReceivedBytes - 2; i = i + 2) {
+
+					else if (sendConnectionNotAccepted) {
+						for (i = 4; i <= (int)nReceivedBytes - 2; i = i + 2) {
 							printf("%c", ArrayInBuf[i]);
 						}
 						printf("\n");
@@ -481,23 +493,23 @@ unsigned int __stdcall SendNet(void* pArguments) {
 			nSendBytes = (sizeof(sendDataBuf.buf)) - 1;
 			Result = WSASend(hClientSocket, &sendDataBuf, 1, &nSendBytes, SendFlags, &sendOverlapped, NULL);
 			*/
-			
+
 			strcpy(data, (char *)CommandBuf);
-			_tprintf(_T("Sending : %s\n"), (char *)CommandBuf);
+			_tprintf(_T("Sending : %s\n"), (wchar_t *)CommandBuf);
 			//dataLength = strlen((char *)CommandBuf);
 			dataLength = wcslen(CommandBuf) * 2 + 6;
 			_tprintf(_T("size is: %d\n"), dataLength);
 			memcpy(sendDataBuf.buf, &dataLength, 4);
 			sendDataBuf.buf[0] = dataLength;
 			memcpy(sendDataBuf.buf + 4, (char *)CommandBuf, 5 * dataLength);
-									
+
 			sendDataBuf.len = wcslen(CommandBuf) * 2 + 6;
 			nSendBytes = sendDataBuf.len;
 
 			//nSendBytes = (sizeof(sendDataBuf.buf)) - 1;
 			Result = WSASend(hClientSocket, &sendDataBuf, 1, &nSendBytes, SendFlags, &sendOverlapped, NULL);
-			
-			
+
+
 			break;
 
 		default: // Fatal problems
