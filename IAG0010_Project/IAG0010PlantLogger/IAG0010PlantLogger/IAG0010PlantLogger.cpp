@@ -3,11 +3,13 @@
 #include "mswsock.h"
 #include "IAG0010PlantLogger.h"
 #include "process.h"
+#include "time.h"
 
 #pragma comment(lib, "Ws2_32.lib")
 #pragma comment(lib, "mswsock.lib")
 
 HANDLE file; //File where we will write the received data
+TCHAR * output_file = L"output.txt"; //name and/or path of the txt file to be written
 
 			 //Socket variables
 WSADATA wsadata; //Windows sockets initialization
@@ -42,6 +44,9 @@ BOOL startOK = FALSE;
 unsigned int __stdcall ReadKeyboard(void* pArguments);
 unsigned int __stdcall ReceiveNet(void* pArguments);
 unsigned int __stdcall SendNet(void* pArguments);
+
+int writeToFile(char * data, HANDLE file); //will write the data received in a .txt file
+const char * displayAndWrite(char *data); //reads the received data, displays in the console, and writes it to a file
 
 //****************************************************************************************************************
 //                                 MAIN THREAD
@@ -147,16 +152,15 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		}
 
-		else if ((!_tcsicmp(CommandBuf, _T("connect")))/*&&(!connectOK)*/) { //used for test
+		else if ((!_tcsicmp(CommandBuf, _T("connect")))/*&&(!connectOK)*/) {
 			_tprintf(_T("Command Connect accepted\n"));
-			//connectOK = TRUE;//pas sur -> mieux si on le gère dans l'envoi.
 			wcscpy(CommandBuf, _T("coursework"));
 			SetEvent(hConnectCommandGot); //user requested to connect
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
 			SetEvent(hSend);
 		}
 
-		else if (!_tcsicmp(CommandBuf, _T("start"))) { //used for test
+		else if (!_tcsicmp(CommandBuf, _T("start"))) {
 			_tprintf(_T("Command Start accepted.\n"));
 			wcscpy(CommandBuf, _T("Start"));
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
@@ -164,9 +168,16 @@ int _tmain(int argc, _TCHAR* argv[])
 			startOK = TRUE;
 		}
 
-		else if (!_tcsicmp(CommandBuf, _T("break"))) { //used for test
+		else if (!_tcsicmp(CommandBuf, _T("break"))) {
 			_tprintf(_T("Command Break accepted.\n"));
 			wcscpy(CommandBuf, _T("Break"));
+			SetEvent(hCommandProcessed); //keyboard thread can continue working
+			SetEvent(hSend);
+		}
+
+		else if (!_tcsicmp(CommandBuf, _T("ready"))) {
+			_tprintf(_T("Command Ready accepted.\n"));
+			wcscpy(CommandBuf, _T("Ready"));
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
 			SetEvent(hSend);
 		}
@@ -175,10 +186,6 @@ int _tmain(int argc, _TCHAR* argv[])
 			_tprintf(_T("Command \"%s\" not recognized\n"), CommandBuf);
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
 		}
-
-		//CommandBuf[0] = 'X'; //test for "resetting" the CommandBuf
-
-
 	}
 
 	// Shut down
@@ -262,6 +269,21 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 	int n = 0;
 
 	//
+	// Initialization of the written file
+	//
+	DWORD nBytesToWrite, nBytesWritten = 0, nBytesToRead, nReadBytes = 0;
+	BYTE *pBuffer;
+	file = CreateFile(output_file, // TCHAR *
+		GENERIC_READ | GENERIC_WRITE,
+		0, NULL,
+		CREATE_ALWAYS,
+		FILE_ATTRIBUTE_NORMAL, NULL);
+
+	if (file == INVALID_HANDLE_VALUE) //gestion des erreurs
+		_tprintf(_T("File not created, error %d"), GetLastError());
+
+
+	//
 	// Receiving loop
 	//
 	while (TRUE) {
@@ -292,106 +314,11 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 					printf("Message received is: ");
 
 					if (startOK == TRUE) {
-						double measurement;
-						//printf("Number of channels : %d\n", ArrayInBuf[4]);
-						//printf("Number of of points in the channel 1 : %d\n", ArrayInBuf[8]);
-						printf("\n\nMeasurement results:\n");
+						displayAndWrite(&ArrayInBuf[0]);
 
-						/* Extractor */
-						for (i = 12; i < 21; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf(":\n");
-
-						/* Input Solution Flow */
-						for (i = 22; i < 41; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf(": ");
-						memcpy(&measurement, &ArrayInBuf[42], sizeof(double));
-						_tprintf(_T("%.7fm%c/s"), measurement, 252);
-						printf("\n");
-
-						/* Input Solution Temperature */
-						for (i = 50; i<76; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf(": ");
-						memcpy(&measurement, &ArrayInBuf[77], sizeof(double));
-						_tprintf(_T("%2.4f%cC"), measurement, 248);
-						printf("\n");
-
-						/* Input Solution Pressure */
-						for (i = 85; i<108; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf(": ");
-						memcpy(&measurement, &ArrayInBuf[109], sizeof(double));
-						_tprintf(_T("%1.5fatm"), measurement);
-						printf("\n");
-
-						/* Input Solution pH */
-						for (i = 117; i<134; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf(": ");
-						memcpy(&measurement, &ArrayInBuf[135], sizeof(double));
-						_tprintf(_T("%1.5f"), measurement);
-						printf("\n");
-
-						/* Extracted Product concentration */
-						for (i = 143; i<174; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf(": ");
-						memcpy(&measurement, &ArrayInBuf[175], sizeof(int));
-						_tprintf(_T("%lf"), measurement);
-						printf("%%\n");
-
-						/* Extracted Product pH */
-						for (i = 179; i<199; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf(": ");
-						memcpy(&measurement, &ArrayInBuf[200], sizeof(double));
-						_tprintf(_T("%1.5f"), measurement);
-						printf("\n");
-
-						/* Oxidizer */
-						for (i = 212; i<220; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf(":\n");
-
-						/* Input Air Pressure */
-						for (i = 221; i<239; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf(": ");
-						memcpy(&measurement, &ArrayInBuf[240], sizeof(double));
-						_tprintf(_T("%1.6fatm"), measurement);
-						printf("\n");
-
-						/* Output Liquid Flow*/
-						for (i = 248; i<266; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf(": ");
-						memcpy(&measurement, &ArrayInBuf[267], sizeof(double));
-						_tprintf(_T("%1.5fm%c/s"), measurement, 252);
-						printf("\n");
-
-						/* Separator */
-						for (i = 279; i<288; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf(":\n");
-
-						/* Input Liquid Flow */
-						for (i = 289; i<306; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf(": ");
-						memcpy(&measurement, &ArrayInBuf[307], sizeof(double));
-						_tprintf(_T("%1.6fm%c/s"), measurement, 252);
-						printf("\n");
-
-						/* Disulfid on output */
-						for (i = 315; i<333; i++)
-							_tprintf(_T("%c"), ArrayInBuf[i]);
-						printf(": ");
-						memcpy(&measurement, &ArrayInBuf[334], sizeof(int));
-						_tprintf(_T("%lf"), measurement);
-						printf("%%\n");
 					}
+
+
 
 					else if (sendConnectionNotAccepted) {
 						for (i = 4; i <= (int)nReceivedBytes - 2; i = i + 2) {
@@ -442,7 +369,7 @@ unsigned int __stdcall SendNet(void* pArguments) {
 	// Initialization
 	char message[50] = "  coursework";
 	WSABUF sendDataBuf; // Buffer for sent data
-	sendDataBuf.buf = &message[0];                         //plus tard: mettre =&ArrayInBuf[0]
+	sendDataBuf.buf = &message[0];                         
 	sendDataBuf.len = 2048;
 	CHAR data[2044];
 	int dataLength = 0;
@@ -483,16 +410,6 @@ unsigned int __stdcall SendNet(void* pArguments) {
 			}
 
 		case WAIT_OBJECT_0 + 2:
-			/*wcscpy_s(data, _T("coursework"));
-			dataLength = sizeof("coursework");
-			_tprintf(_T("Sending : %s and size is: %d\n"), data, dataLength);
-			memcpy(sendDataBuf.buf, &dataLength, 4);
-			sendDataBuf.buf[0] = 26;
-			memcpy(sendDataBuf.buf + 4, data, dataLength + 8);
-			sendDataBuf.len = sizeof("coursework")*2 + 4;
-			nSendBytes = (sizeof(sendDataBuf.buf)) - 1;
-			Result = WSASend(hClientSocket, &sendDataBuf, 1, &nSendBytes, SendFlags, &sendOverlapped, NULL);
-			*/
 
 			strcpy(data, (char *)CommandBuf);
 			_tprintf(_T("Sending : %s\n"), (wchar_t *)CommandBuf);
@@ -524,3 +441,135 @@ out_send:
 	WSACloseEvent(SentEvents[1]);
 	return 0;
 }
+
+int writeToFile(char * dataToWrite, HANDLE file) {
+	int length = strlen(dataToWrite); //length of the string to write
+	DWORD nBytesWritten; //number of bytes written 
+
+	if (!WriteFile(file, dataToWrite, length * sizeof(char), &nBytesWritten, NULL)) {
+		_tprintf(_T("Unable to write to file. Received error %d"), GetLastError());
+		return 1;
+	}
+	if (nBytesWritten != length) {
+		_tprintf(_T("Write failed, only %d bytes written\n"), nBytesWritten);
+	}
+	return 0;
+}
+
+const char * displayAndWrite(char *data) {
+	int position = 0; //positionition in the data package
+
+	int length;
+	memcpy(&length, data, sizeof(int)); //we specify sizeof(int) to only select the first information in the package
+	position = sizeof(int); //our position 
+	_tprintf(_T("Number of bytes in package: %d\n"), length);
+
+	int channels_number; //number of channels in the data package
+	memcpy(&channels_number, data + position, sizeof(int));
+	position = position + sizeof(int);
+	_tprintf(_T("Number of channels in package: %d\n"), channels_number);
+
+	char dataToWrite[2048]; //data that needs to be written in the file
+
+	time_t timeNow = time(NULL);
+	struct tm *t = localtime(&timeNow);
+	char currentTime[2048];
+	sprintf(currentTime, "Measurements at %d-%02d-%02d %02d:%02d:%02d",
+		t->tm_year + 1900, t->tm_mon, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
+	printf(currentTime);
+	strcpy(dataToWrite, currentTime);	//we copy the strings about time to the data needed to be written in the file
+	strcat(dataToWrite, "\n");			//and concatenate a \n for a proper presentation
+	writeToFile(dataToWrite, file); //data is written to our file
+
+	for (int i = 0; i < channels_number; i++) { //we repeat the procedure for each channel
+		int pointsNumber; //number of measurement points in the active channel
+
+		memcpy(&pointsNumber, data + position, sizeof(int));
+		position = position + sizeof(int);
+		_tprintf(_T("Number of measurement points for the active channel: %d\n"), pointsNumber);
+
+		char channelName[2048]; //name of the active channel
+		memccpy(channelName, data + position, '\0', 15);
+		printf("Channel name: %s\n", channelName);
+		strcpy(dataToWrite, channelName);
+		strcat(dataToWrite, ":\n");
+		writeToFile(dataToWrite, file);
+		position = position + strlen(channelName) + 1;
+
+		for (int j = 0; j < pointsNumber; j++) { //we repeat the procedure for each point
+			char pointName[2048]; //name of the active point
+			memccpy(pointName, data + position, '\0', 35);
+			printf("Point name: %s\n", pointName);
+			strcpy(dataToWrite, pointName);
+			strcat(dataToWrite, ": ");
+			writeToFile(dataToWrite, file);
+			position = position + strlen(pointName) + 1;
+
+			char stringMeasurements[2048]; //data that contains numerical values
+
+			if (!strcmp(pointName, "Input solution flow") ||
+				!strcmp(pointName, "Input liquid flow") ||
+				!strcmp(pointName, "Output solution flow") ||
+				!strcmp(pointName, "Output liquid flow")) {
+
+				double measurement;
+				memcpy(&measurement, data + position, sizeof(double));
+				position = position + sizeof(double);
+				_tprintf(_T("Measurement: %.3f m%c/s\n"), measurement, 252);
+				sprintf(stringMeasurements, "%.3f m^3/s\n", measurement);
+				strcpy(dataToWrite, stringMeasurements);
+				writeToFile(dataToWrite, file);
+			}
+			else if (!strcmp(pointName, "Input solution temperature")) {
+				double measurement;
+				memcpy(&measurement, data + position, sizeof(double));
+				position = position + sizeof(double);
+				_tprintf(_T("Measurement: %.1f %cC\n"), measurement, 248);
+				sprintf(stringMeasurements, "%.1f %cC\n", measurement, 248);
+				strcpy(dataToWrite, stringMeasurements);
+				writeToFile(dataToWrite, file);
+			}
+			else if (!strcmp(pointName, "Input solution pressure") ||
+				!strcmp(pointName, "Input air pressure")) {
+				double measurement;
+				memcpy(&measurement, data + position, sizeof(double));
+				position = position + sizeof(double);
+				_tprintf(_T("Measurement: %.1f atm\n"), measurement);
+				sprintf(stringMeasurements, "%.1f atm\n", measurement);
+				strcpy(dataToWrite, stringMeasurements);
+				writeToFile(dataToWrite, file);
+			}
+			else if (!strcmp(pointName, "Extracted product concentration") ||
+				!strcmp(pointName, "Disulfid on output")) {
+				int measurement;
+				memcpy(&measurement, data + position, sizeof(int));
+				position = position + sizeof(int);
+				_tprintf(_T("Measurement: %d %%\n"), measurement);
+				sprintf(stringMeasurements, "%d %%\n", measurement);
+				strcpy(dataToWrite, stringMeasurements);
+				writeToFile(dataToWrite, file);
+				writeToFile(dataToWrite, file);
+			}
+			else if (!strcmp(pointName, "Input solution pH") ||
+				!strcmp(pointName, "Extracted product pH")) {
+				double measurement;
+				memcpy(&measurement, data + position, sizeof(double));
+				position = position + sizeof(double);
+				_tprintf(_T("Measurement: %.1f atm\n"), measurement);
+				sprintf(stringMeasurements, "%.1f atm\n", measurement);
+				strcpy(dataToWrite, stringMeasurements);
+				writeToFile(dataToWrite, file);
+			}
+		}
+	}
+	_tprintf(_T("\n"));
+	strcpy(dataToWrite, "\n");
+	writeToFile(dataToWrite, file);
+
+	wcscpy(CommandBuf, _T("Ready")); //sends the command "Ready" automatically to the server. It will break when "Break" is manually send.
+	SetEvent(hSend);
+
+	return "";
+}
+
+	
