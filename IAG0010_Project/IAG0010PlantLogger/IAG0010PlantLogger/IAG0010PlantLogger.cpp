@@ -238,8 +238,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		else {
 			_tprintf(_T("Command \"%s\" not recognized\n"), CommandBuf);
-			SetEvent(hCommandProcessed); //keyboard thread can continue working
-		}*/
+			SetEvent(hCommandProcessed); //keyboard thread can continue working*/
+		}
 	}
 
 	// Shut down
