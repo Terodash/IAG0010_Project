@@ -199,15 +199,15 @@ int _tmain(int argc, _TCHAR* argv[])
 				SetEvent(hCommandProcessed);
 			}
 			
-		/*if (!_tcsicmp(CommandBuf, _T("exit"))) { //user typed "exit" command
-			_tprintf(_T("Terminating...\n"));
+		//if (!_tcsicmp(CommandBuf, _T("exit"))) { //user typed "exit" command
+		/*	_tprintf(_T("Terminating...\n"));
 			SetEvent(hStopCommandGot);
 			break;
 
-		}
+		}*/
 
-		else if ((!_tcsicmp(CommandBuf, _T("connect")))/*&&(!connectOK)*/) {
-			_tprintf(_T("Command Connect accepted\n"));
+		//else if ((!_tcsicmp(CommandBuf, _T("connect")))/*&&(!connectOK)*/) {
+		/*	_tprintf(_T("Command Connect accepted\n"));
 			wcscpy(CommandBuf, _T("coursework"));
 			SetEvent(hConnectCommandGot); //user requested to connect
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
