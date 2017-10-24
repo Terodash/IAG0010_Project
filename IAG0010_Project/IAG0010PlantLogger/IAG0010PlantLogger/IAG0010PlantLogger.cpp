@@ -18,6 +18,7 @@ SOCKET hClientSocket = INVALID_SOCKET;
 sockaddr_in ClientSocketInfo;
 BOOL SocketError;
 BOOL sendConnectionNotAccepted = TRUE;
+BOOL connected = FALSE;
 
 //Events
 HANDLE hCommandGot;			// "User typed a command"
@@ -144,8 +145,61 @@ int _tmain(int argc, _TCHAR* argv[])
 			goto out_main;
 		}
 		ResetEvent(hCommandGot);
+		
+		if (!connected) {
+			if (!_tcsicmp(CommandBuf, _T("connect"))) { //used for test
+				SetEvent(hCommandProcessed); //keyboard thread can continue working
+				//return _tmain(argc, argv);
+			}			
+			else if (!_tcsicmp(CommandBuf, _T("exit"))) { //user typed "exit" command
+				_tprintf(_T("Terminating...\n"));
+				SetEvent(hStopCommandGot);
+				break;
+			}
+			else {
+				SetEvent(hCommandProcessed); //keyboard thread can continue working
+				SetEvent(hReadKeyboard);
+				SetEvent(hSend);
+			}
+		}
+		else {
+			if (!_tcsicmp(CommandBuf, _T("exit"))) { //user typed "exit" command
+				_tprintf(_T("Terminating...\n"));
+				SetEvent(hStopCommandGot);
+				break;
+			}
+			
+			else if (!_tcsicmp(CommandBuf, _T("start"))) { //used for test
+				_tprintf(_T("Command start accepted.\n"));
+				SetEvent(hCommandProcessed); //keyboard thread can continue working
+				wcscpy(CommandBuf, _T("Start"));
+				startOK = TRUE;
+				SetEvent(hSend);	
+			}
 
-		if (!_tcsicmp(CommandBuf, _T("exit"))) { //user typed "exit" command
+			else if (!_tcsicmp(CommandBuf, _T("break"))) { //used for test
+				_tprintf(_T("Command break accepted.\n"));
+				wcscpy(CommandBuf, _T("Break"));
+				SetEvent(hCommandProcessed); //keyboard thread can continue working
+				SetEvent(hSend);
+			}
+
+			else if (!_tcsicmp(CommandBuf, _T("stop"))) { //used for test
+				_tprintf(_T("Command stop accepted.\n"));
+				SetEvent(hCommandProcessed); //keyboard thread can continue working
+				wcscpy(CommandBuf, _T("Stop"));
+				SetEvent(hSend);
+				sendConnectionNotAccepted = FALSE;
+				connected = FALSE;
+				startOK = FALSE;
+			}
+
+			else {
+				_tprintf(_T("The command is not recognized.\n"));
+				SetEvent(hCommandProcessed);
+			}
+			
+		/*if (!_tcsicmp(CommandBuf, _T("exit"))) { //user typed "exit" command
 			_tprintf(_T("Terminating...\n"));
 			SetEvent(hStopCommandGot);
 			break;
@@ -185,7 +239,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		else {
 			_tprintf(_T("Command \"%s\" not recognized\n"), CommandBuf);
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
-		}
+		}*/
 	}
 
 	// Shut down
@@ -265,6 +319,8 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 	Overlapped.hEvent = NetEvents[1] = WSACreateEvent();
 	DWORD Result, Error;
 	wchar_t *identifier = L"Identify";
+	wchar_t *accepted = L"Accepted";
+	wchar_t *notAccepted = L"Not accepted";
 	wchar_t *DataPointer;
 	int n = 0;
 
@@ -333,6 +389,12 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 							_tprintf(_T("Identification requested...\n"));
 							SetEvent(hSendPassword);
 						}
+						
+						if (!wcscmp(DataPointer, accepted)) //Good password
+							connected = TRUE;
+												
+						if (!wcscmp(DataPointer, notAccepted)) //wrong password
+							Sleep(5);
 					}
 					break;
 				}
