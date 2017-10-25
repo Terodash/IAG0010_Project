@@ -1,3 +1,8 @@
+//Ce qui ne fonctionne pas :
+//Lorsqu'on effectue la commande stop, on ne peut pas refaire connect après, la connexion est coupée à jamais
+//
+
+
 #include "stdafx.h"
 #include "Winsock2.h" // necessary for sockets, Windows.h is not needed.
 #include "mswsock.h"
@@ -11,14 +16,13 @@
 HANDLE file; //File where we will write the received data
 TCHAR * output_file = L"output.txt"; //name and/or path of the txt file to be written
 
-			 //Socket variables
+									 //Socket variables
 WSADATA wsadata; //Windows sockets initialization
 DWORD Error;
 SOCKET hClientSocket = INVALID_SOCKET;
 sockaddr_in ClientSocketInfo;
 BOOL SocketError;
 BOOL sendConnectionNotAccepted = TRUE;
-BOOL connected = FALSE;
 
 //Events
 HANDLE hCommandGot;			// "User typed a command"
@@ -41,6 +45,8 @@ HANDLE ReceivedEvents[2];
 
 TCHAR CommandBuf[81];		//Buffer for the command written by the user
 BOOL startOK = FALSE;
+BOOL connectOK = FALSE;
+
 // Prototypes of our threads
 unsigned int __stdcall ReadKeyboard(void* pArguments);
 unsigned int __stdcall ReceiveNet(void* pArguments);
@@ -49,9 +55,9 @@ unsigned int __stdcall SendNet(void* pArguments);
 int writeToFile(char * data, HANDLE file); //will write the data received in a .txt file
 const char * displayAndWrite(char *data); //reads the received data, displays in the console, and writes it to a file
 
-//****************************************************************************************************************
-//                                 MAIN THREAD
-//****************************************************************************************************************
+										  //****************************************************************************************************************
+										  //                                 MAIN THREAD
+										  //****************************************************************************************************************
 int _tmain(int argc, _TCHAR* argv[])
 {
 	//
@@ -145,126 +151,110 @@ int _tmain(int argc, _TCHAR* argv[])
 			goto out_main;
 		}
 		ResetEvent(hCommandGot);
-		
-		if (!connected) {
-			if (!_tcsicmp(CommandBuf, _T("connect"))) { //used for test
-				SetEvent(hCommandProcessed); //keyboard thread can continue working
-				//return _tmain(argc, argv);
-			}			
-			else if (!_tcsicmp(CommandBuf, _T("exit"))) { //user typed "exit" command
-				_tprintf(_T("Terminating...\n"));
-				SetEvent(hStopCommandGot);
-				break;
-			}
-			else {
-				SetEvent(hCommandProcessed); //keyboard thread can continue working
-				SetEvent(hReadKeyboard);
-				SetEvent(hSend);
-			}
-		}
-		else {
-			if (!_tcsicmp(CommandBuf, _T("exit"))) { //user typed "exit" command
-				_tprintf(_T("Terminating...\n"));
-				SetEvent(hStopCommandGot);
-				break;
-			}
-			
-			else if (!_tcsicmp(CommandBuf, _T("start"))) { //used for test
-				_tprintf(_T("Command start accepted.\n"));
-				SetEvent(hCommandProcessed); //keyboard thread can continue working
-				wcscpy(CommandBuf, _T("Start"));
-				startOK = TRUE;
-				SetEvent(hSend);	
-			}
 
-			else if (!_tcsicmp(CommandBuf, _T("break"))) { //used for test
-				_tprintf(_T("Command break accepted.\n"));
-				wcscpy(CommandBuf, _T("Break"));
-				SetEvent(hCommandProcessed); //keyboard thread can continue working
-				SetEvent(hSend);
-			}
-
-			else if (!_tcsicmp(CommandBuf, _T("stop"))) { //used for test
-				_tprintf(_T("Command stop accepted.\n"));
-				SetEvent(hCommandProcessed); //keyboard thread can continue working
-				wcscpy(CommandBuf, _T("Stop"));
-				SetEvent(hSend);
-				sendConnectionNotAccepted = FALSE;
-				connected = FALSE;
-				startOK = FALSE;
-			}
-
-			else {
-				_tprintf(_T("The command is not recognized.\n"));
-				SetEvent(hCommandProcessed);
-			}
-			
-		//if (!_tcsicmp(CommandBuf, _T("exit"))) { //user typed "exit" command
-		/*	_tprintf(_T("Terminating...\n"));
+		if (!_tcsicmp(CommandBuf, _T("exit"))) { //user typed "exit" command
+			_tprintf(_T("Terminating...\n"));
 			SetEvent(hStopCommandGot);
 			break;
-
-		}*/
-
-		//else if ((!_tcsicmp(CommandBuf, _T("connect")))/*&&(!connectOK)*/) {
-		/*	_tprintf(_T("Command Connect accepted\n"));
-			wcscpy(CommandBuf, _T("coursework"));
-			SetEvent(hConnectCommandGot); //user requested to connect
-			SetEvent(hCommandProcessed); //keyboard thread can continue working
-			SetEvent(hSend);
 		}
 
-		else if (!_tcsicmp(CommandBuf, _T("start"))) {
-			_tprintf(_T("Command Start accepted.\n"));
+		else if (!_tcsicmp(CommandBuf, _T("connect")) && (!connectOK)) { //used for test
+			_tprintf(_T("Command Connect accepted\n"));
+			wcscpy(CommandBuf, _T("coursework"));
+			SetEvent(hCommandProcessed); //keyboard thread can continue working
+			SetEvent(hReadKeyboard);//pas sur -> Pourquoi pas dans les autres ?
+			SetEvent(hSend);
+		}
+		else if ((!_tcsicmp(CommandBuf, _T("start"))) && (connectOK)) { //used for test
+			_tprintf(_T("Command start accepted.\n"));
 			wcscpy(CommandBuf, _T("Start"));
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
-			SetEvent(hSend);
 			startOK = TRUE;
+			SetEvent(hSend);
 		}
 
-		else if (!_tcsicmp(CommandBuf, _T("break"))) {
-			_tprintf(_T("Command Break accepted.\n"));
+		else if (!_tcsicmp(CommandBuf, _T("break"))) { //used for test
+			_tprintf(_T("Command break accepted.\n"));
 			wcscpy(CommandBuf, _T("Break"));
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
 			SetEvent(hSend);
 		}
 
-		else if (!_tcsicmp(CommandBuf, _T("ready"))) {
-			_tprintf(_T("Command Ready accepted.\n"));
-			wcscpy(CommandBuf, _T("Ready"));
+		else if (!_tcsicmp(CommandBuf, _T("stop")) && (connectOK)) { //used for test
+			_tprintf(_T("Command stop accepted.\n"));
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
+			wcscpy(CommandBuf, _T("Stop"));
 			SetEvent(hSend);
+			sendConnectionNotAccepted = FALSE;
+			connectOK = FALSE;
+			startOK = FALSE;
 		}
 
+
+		//if (!_tcsicmp(CommandBuf, _T("exit"))) { //user typed "exit" command
+		/*	_tprintf(_T("Terminating...\n"));
+		SetEvent(hStopCommandGot);
+		break;
+		}*/
+
+		//else if ((!_tcsicmp(CommandBuf, _T("connect")))/*&&(!connectOK)*/) {
+		/*	_tprintf(_T("Command Connect accepted\n"));
+		wcscpy(CommandBuf, _T("coursework"));
+		SetEvent(hConnectCommandGot); //user requested to connect
+		SetEvent(hCommandProcessed); //keyboard thread can continue working
+		SetEvent(hSend);
+		}
+		else if (!_tcsicmp(CommandBuf, _T("start"))) {
+		_tprintf(_T("Command Start accepted.\n"));
+		wcscpy(CommandBuf, _T("Start"));
+		SetEvent(hCommandProcessed); //keyboard thread can continue working
+		SetEvent(hSend);
+		startOK = TRUE;
+		}
+		else if (!_tcsicmp(CommandBuf, _T("break"))) {
+		_tprintf(_T("Command Break accepted.\n"));
+		wcscpy(CommandBuf, _T("Break"));
+		SetEvent(hCommandProcessed); //keyboard thread can continue working
+		SetEvent(hSend);
+		}
+		else if (!_tcsicmp(CommandBuf, _T("ready"))) {
+		_tprintf(_T("Command Ready accepted.\n"));
+		wcscpy(CommandBuf, _T("Ready"));
+		SetEvent(hCommandProcessed); //keyboard thread can continue working
+		SetEvent(hSend);
+		}
 		else {
-			_tprintf(_T("Command \"%s\" not recognized\n"), CommandBuf);
-			SetEvent(hCommandProcessed); //keyboard thread can continue working*/
+		_tprintf(_T("Command \"%s\" not recognized\n"), CommandBuf);
+		SetEvent(hCommandProcessed); //keyboard thread can continue working*/
+		else {
+			_tprintf(_T("The command is not recognized.\n"));
+			SetEvent(hCommandProcessed);
 		}
-	}
 
-	// Shut down
-out_main:
-	if (hReadKeyboard) {
-		WaitForSingleObject(hReadKeyboard, INFINITE);
-		CloseHandle(hReadKeyboard);
-	}
-
-	if (hReceiveNet) {
-		WaitForSingleObject(hReceiveNet, INFINITE);
-		CloseHandle(hReceiveNet);
-	}
-	if (hClientSocket != INVALID_SOCKET) {
-		if (shutdown(hClientSocket, SD_RECEIVE) == SOCKET_ERROR) {
-			if ((Error = WSAGetLastError()) != WSAENOTCONN)
-				_tprintf(_T("shutdown() failed, error %d\n"), WSAGetLastError());
+		// Shut down
+	out_main:
+		if (hReadKeyboard) {
+			WaitForSingleObject(hReadKeyboard, INFINITE);
+			CloseHandle(hReadKeyboard);
 		}
-		closesocket(hClientSocket);
+
+		if (hReceiveNet) {
+			WaitForSingleObject(hReceiveNet, INFINITE);
+			CloseHandle(hReceiveNet);
+		}
+		if (hClientSocket != INVALID_SOCKET) {
+			if (shutdown(hClientSocket, SD_RECEIVE) == SOCKET_ERROR) {
+				if ((Error = WSAGetLastError()) != WSAENOTCONN)
+					_tprintf(_T("shutdown() failed, error %d\n"), WSAGetLastError());
+			}
+			closesocket(hClientSocket);
+		}
+		WSACleanup();
+		CloseHandle(hStopCommandGot);
+		CloseHandle(hCommandGot);
+		CloseHandle(hCommandProcessed);
+		return 0;
 	}
-	WSACleanup();
-	CloseHandle(hStopCommandGot);
-	CloseHandle(hCommandGot);
-	CloseHandle(hCommandProcessed);
-	return 0;
 }
 
 //**************************************************************************************************************
@@ -389,10 +379,10 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 							_tprintf(_T("Identification requested...\n"));
 							SetEvent(hSendPassword);
 						}
-						
+
 						if (!wcscmp(DataPointer, accepted)) //Good password
-							connected = TRUE;
-												
+							connectOK = TRUE;
+
 						if (!wcscmp(DataPointer, notAccepted)) //wrong password
 							Sleep(5);
 					}
@@ -431,7 +421,7 @@ unsigned int __stdcall SendNet(void* pArguments) {
 	// Initialization
 	char message[50] = "  coursework";
 	WSABUF sendDataBuf; // Buffer for sent data
-	sendDataBuf.buf = &message[0];                         
+	sendDataBuf.buf = &message[0];
 	sendDataBuf.len = 2048;
 	CHAR data[2044];
 	int dataLength = 0;
@@ -517,6 +507,9 @@ int writeToFile(char * dataToWrite, HANDLE file) {
 	}
 	return 0;
 }
+//--------------------------------
+//DISPLAY FUNCTION
+//--------------------------------------
 
 const char * displayAndWrite(char *data) {
 	int position = 0; //positionition in the data package
