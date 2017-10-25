@@ -1,8 +1,3 @@
-//Ce qui ne fonctionne pas :
-//Lorsqu'on effectue la commande stop, on ne peut pas refaire connect après, la connexion est coupée à jamais
-//
-
-
 #include "stdafx.h"
 #include "Winsock2.h" // necessary for sockets, Windows.h is not needed.
 #include "mswsock.h"
@@ -16,7 +11,7 @@
 HANDLE file; //File where we will write the received data
 TCHAR * output_file = L"output.txt"; //name and/or path of the txt file to be written
 
-									 //Socket variables
+			 //Socket variables
 WSADATA wsadata; //Windows sockets initialization
 DWORD Error;
 SOCKET hClientSocket = INVALID_SOCKET;
@@ -45,8 +40,6 @@ HANDLE ReceivedEvents[2];
 
 TCHAR CommandBuf[81];		//Buffer for the command written by the user
 BOOL startOK = FALSE;
-BOOL connectOK = FALSE;
-
 // Prototypes of our threads
 unsigned int __stdcall ReadKeyboard(void* pArguments);
 unsigned int __stdcall ReceiveNet(void* pArguments);
@@ -55,9 +48,9 @@ unsigned int __stdcall SendNet(void* pArguments);
 int writeToFile(char * data, HANDLE file); //will write the data received in a .txt file
 const char * displayAndWrite(char *data); //reads the received data, displays in the console, and writes it to a file
 
-										  //****************************************************************************************************************
-										  //                                 MAIN THREAD
-										  //****************************************************************************************************************
+//****************************************************************************************************************
+//                                 MAIN THREAD
+//****************************************************************************************************************
 int _tmain(int argc, _TCHAR* argv[])
 {
 	//
@@ -156,105 +149,68 @@ int _tmain(int argc, _TCHAR* argv[])
 			_tprintf(_T("Terminating...\n"));
 			SetEvent(hStopCommandGot);
 			break;
+
 		}
 
-		else if (!_tcsicmp(CommandBuf, _T("connect")) && (!connectOK)) { //used for test
+		else if ((!_tcsicmp(CommandBuf, _T("connect")))/*&&(!connectOK)*/) {
 			_tprintf(_T("Command Connect accepted\n"));
 			wcscpy(CommandBuf, _T("coursework"));
+			SetEvent(hConnectCommandGot); //user requested to connect
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
-			SetEvent(hReadKeyboard);//pas sur -> Pourquoi pas dans les autres ?
-			SetEvent(hSend);
-		}
-		else if ((!_tcsicmp(CommandBuf, _T("start"))) && (connectOK)) { //used for test
-			_tprintf(_T("Command start accepted.\n"));
-			wcscpy(CommandBuf, _T("Start"));
-			SetEvent(hCommandProcessed); //keyboard thread can continue working
-			startOK = TRUE;
 			SetEvent(hSend);
 		}
 
-		else if (!_tcsicmp(CommandBuf, _T("break"))) { //used for test
-			_tprintf(_T("Command break accepted.\n"));
+		else if (!_tcsicmp(CommandBuf, _T("start"))) {
+			_tprintf(_T("Command Start accepted.\n"));
+			wcscpy(CommandBuf, _T("Start"));
+			SetEvent(hCommandProcessed); //keyboard thread can continue working
+			SetEvent(hSend);
+			startOK = TRUE;
+		}
+
+		else if (!_tcsicmp(CommandBuf, _T("break"))) {
+			_tprintf(_T("Command Break accepted.\n"));
 			wcscpy(CommandBuf, _T("Break"));
 			SetEvent(hCommandProcessed); //keyboard thread can continue working
 			SetEvent(hSend);
 		}
 
-		else if (!_tcsicmp(CommandBuf, _T("stop")) && (connectOK)) { //used for test
-			_tprintf(_T("Command stop accepted.\n"));
-			SetEvent(hCommandProcessed); //keyboard thread can continue working
-			wcscpy(CommandBuf, _T("Stop"));
-			SetEvent(hSend);
-			sendConnectionNotAccepted = FALSE;
-			connectOK = FALSE;
-			startOK = FALSE;
-		}
-
-
-		//if (!_tcsicmp(CommandBuf, _T("exit"))) { //user typed "exit" command
-		/*	_tprintf(_T("Terminating...\n"));
-		SetEvent(hStopCommandGot);
-		break;
-		}*/
-
-		//else if ((!_tcsicmp(CommandBuf, _T("connect")))/*&&(!connectOK)*/) {
-		/*	_tprintf(_T("Command Connect accepted\n"));
-		wcscpy(CommandBuf, _T("coursework"));
-		SetEvent(hConnectCommandGot); //user requested to connect
-		SetEvent(hCommandProcessed); //keyboard thread can continue working
-		SetEvent(hSend);
-		}
-		else if (!_tcsicmp(CommandBuf, _T("start"))) {
-		_tprintf(_T("Command Start accepted.\n"));
-		wcscpy(CommandBuf, _T("Start"));
-		SetEvent(hCommandProcessed); //keyboard thread can continue working
-		SetEvent(hSend);
-		startOK = TRUE;
-		}
-		else if (!_tcsicmp(CommandBuf, _T("break"))) {
-		_tprintf(_T("Command Break accepted.\n"));
-		wcscpy(CommandBuf, _T("Break"));
-		SetEvent(hCommandProcessed); //keyboard thread can continue working
-		SetEvent(hSend);
-		}
 		else if (!_tcsicmp(CommandBuf, _T("ready"))) {
-		_tprintf(_T("Command Ready accepted.\n"));
-		wcscpy(CommandBuf, _T("Ready"));
-		SetEvent(hCommandProcessed); //keyboard thread can continue working
-		SetEvent(hSend);
-		}
-		else {
-		_tprintf(_T("Command \"%s\" not recognized\n"), CommandBuf);
-		SetEvent(hCommandProcessed); //keyboard thread can continue working*/
-		else {
-			_tprintf(_T("The command is not recognized.\n"));
-			SetEvent(hCommandProcessed);
+			_tprintf(_T("Command Ready accepted.\n"));
+			wcscpy(CommandBuf, _T("Ready"));
+			SetEvent(hCommandProcessed); //keyboard thread can continue working
+			SetEvent(hSend);
 		}
 
-		// Shut down
-	out_main:
-		if (hReadKeyboard) {
-			WaitForSingleObject(hReadKeyboard, INFINITE);
-			CloseHandle(hReadKeyboard);
+		else {
+			_tprintf(_T("Command \"%s\" not recognized\n"), CommandBuf);
+			SetEvent(hCommandProcessed); //keyboard thread can continue working
 		}
-
-		if (hReceiveNet) {
-			WaitForSingleObject(hReceiveNet, INFINITE);
-			CloseHandle(hReceiveNet);
-		}
-		if (hClientSocket != INVALID_SOCKET) {
-			if (shutdown(hClientSocket, SD_RECEIVE) == SOCKET_ERROR) {
-				if ((Error = WSAGetLastError()) != WSAENOTCONN)
-					_tprintf(_T("shutdown() failed, error %d\n"), WSAGetLastError());
-			}
-			closesocket(hClientSocket);
-		}
-		WSACleanup();
-		CloseHandle(hStopCommandGot);
-		CloseHandle(hCommandGot);
-		CloseHandle(hCommandProcessed);
-		return 0;
 	}
+
+	// Shut down
+out_main:
+	if (hReadKeyboard) {
+		WaitForSingleObject(hReadKeyboard, INFINITE);
+		CloseHandle(hReadKeyboard);
+	}
+
+	if (hReceiveNet) {
+		WaitForSingleObject(hReceiveNet, INFINITE);
+		CloseHandle(hReceiveNet);
+	}
+	if (hClientSocket != INVALID_SOCKET) {
+		if (shutdown(hClientSocket, SD_RECEIVE) == SOCKET_ERROR) {
+			if ((Error = WSAGetLastError()) != WSAENOTCONN)
+				_tprintf(_T("shutdown() failed, error %d\n"), WSAGetLastError());
+		}
+		closesocket(hClientSocket);
+	}
+	WSACleanup();
+	CloseHandle(hStopCommandGot);
+	CloseHandle(hCommandGot);
+	CloseHandle(hCommandProcessed);
+	return 0;
 }
 
 //**************************************************************************************************************
@@ -309,8 +265,6 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 	Overlapped.hEvent = NetEvents[1] = WSACreateEvent();
 	DWORD Result, Error;
 	wchar_t *identifier = L"Identify";
-	wchar_t *accepted = L"Accepted";
-	wchar_t *notAccepted = L"Not accepted";
 	wchar_t *DataPointer;
 	int n = 0;
 
@@ -361,7 +315,7 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 
 					if (startOK == TRUE) {
 						displayAndWrite(&ArrayInBuf[0]);
-
+						//printf("On fait des trucs");
 					}
 
 
@@ -379,12 +333,6 @@ unsigned int __stdcall ReceiveNet(void* pArguments) {
 							_tprintf(_T("Identification requested...\n"));
 							SetEvent(hSendPassword);
 						}
-
-						if (!wcscmp(DataPointer, accepted)) //Good password
-							connectOK = TRUE;
-
-						if (!wcscmp(DataPointer, notAccepted)) //wrong password
-							Sleep(5);
 					}
 					break;
 				}
@@ -496,7 +444,7 @@ out_send:
 
 int writeToFile(char * dataToWrite, HANDLE file) {
 	int length = strlen(dataToWrite); //length of the string to write
-	DWORD nBytesWritten; //number of bytes written 
+	DWORD nBytesWritten; //number of bytes written
 
 	if (!WriteFile(file, dataToWrite, length * sizeof(char), &nBytesWritten, NULL)) {
 		_tprintf(_T("Unable to write to file. Received error %d"), GetLastError());
@@ -507,16 +455,13 @@ int writeToFile(char * dataToWrite, HANDLE file) {
 	}
 	return 0;
 }
-//--------------------------------
-//DISPLAY FUNCTION
-//--------------------------------------
 
 const char * displayAndWrite(char *data) {
 	int position = 0; //positionition in the data package
 
 	int length;
 	memcpy(&length, data, sizeof(int)); //we specify sizeof(int) to only select the first information in the package
-	position = sizeof(int); //our position 
+	position = sizeof(int); //our position
 	_tprintf(_T("Number of bytes in package: %d\n"), length);
 
 	int channels_number; //number of channels in the data package
@@ -529,7 +474,7 @@ const char * displayAndWrite(char *data) {
 	time_t timeNow = time(NULL);
 	struct tm *t = localtime(&timeNow);
 	char currentTime[2048];
-	sprintf(currentTime, "Measurements at %d-%02d-%02d %02d:%02d:%02d",
+	sprintf(currentTime, "Measurements at %d-%02d-%02d %02d:%02d:%02d \n",
 		t->tm_year + 1900, t->tm_mon, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
 	printf(currentTime);
 	strcpy(dataToWrite, currentTime);	//we copy the strings about time to the data needed to be written in the file
@@ -544,7 +489,7 @@ const char * displayAndWrite(char *data) {
 		_tprintf(_T("Number of measurement points for the active channel: %d\n"), pointsNumber);
 
 		char channelName[2048]; //name of the active channel
-		memccpy(channelName, data + position, '\0', 15);
+		memccpy(channelName, data + position, '\0', 20);
 		printf("Channel name: %s\n", channelName);
 		strcpy(dataToWrite, channelName);
 		strcat(dataToWrite, ":\n");
@@ -562,40 +507,18 @@ const char * displayAndWrite(char *data) {
 
 			char stringMeasurements[2048]; //data that contains numerical values
 
-			if (!strcmp(pointName, "Input solution flow") ||
-				!strcmp(pointName, "Input liquid flow") ||
-				!strcmp(pointName, "Output solution flow") ||
-				!strcmp(pointName, "Output liquid flow")) {
+			if (!strcmp(pointName, "Input turbidity") ||
+				!strcmp(pointName, "Output turbidity")) {
 
 				double measurement;
 				memcpy(&measurement, data + position, sizeof(double));
 				position = position + sizeof(double);
-				_tprintf(_T("Measurement: %.3f m%c/s\n"), measurement, 252);
-				sprintf(stringMeasurements, "%.3f m^3/s\n", measurement);
+				_tprintf(_T("Measurement: %.3f NTU\n"), measurement);
+				sprintf(stringMeasurements, "%.3f NTU\n", measurement);
 				strcpy(dataToWrite, stringMeasurements);
 				writeToFile(dataToWrite, file);
 			}
-			else if (!strcmp(pointName, "Input solution temperature")) {
-				double measurement;
-				memcpy(&measurement, data + position, sizeof(double));
-				position = position + sizeof(double);
-				_tprintf(_T("Measurement: %.1f %cC\n"), measurement, 248);
-				sprintf(stringMeasurements, "%.1f %cC\n", measurement, 248);
-				strcpy(dataToWrite, stringMeasurements);
-				writeToFile(dataToWrite, file);
-			}
-			else if (!strcmp(pointName, "Input solution pressure") ||
-				!strcmp(pointName, "Input air pressure")) {
-				double measurement;
-				memcpy(&measurement, data + position, sizeof(double));
-				position = position + sizeof(double);
-				_tprintf(_T("Measurement: %.1f atm\n"), measurement);
-				sprintf(stringMeasurements, "%.1f atm\n", measurement);
-				strcpy(dataToWrite, stringMeasurements);
-				writeToFile(dataToWrite, file);
-			}
-			else if (!strcmp(pointName, "Extracted product concentration") ||
-				!strcmp(pointName, "Disulfid on output")) {
+			else if (!strcmp(pointName, "Level")) {
 				int measurement;
 				memcpy(&measurement, data + position, sizeof(int));
 				position = position + sizeof(int);
@@ -604,8 +527,7 @@ const char * displayAndWrite(char *data) {
 				strcpy(dataToWrite, stringMeasurements);
 				writeToFile(dataToWrite, file);
 			}
-			else if (!strcmp(pointName, "Input solution pH") ||
-				!strcmp(pointName, "Extracted product pH")) {
+			else if (!strcmp(pointName, "Output air pressure")) {
 				double measurement;
 				memcpy(&measurement, data + position, sizeof(double));
 				position = position + sizeof(double);
@@ -625,5 +547,3 @@ const char * displayAndWrite(char *data) {
 
 	return "";
 }
-
-	
