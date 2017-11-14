@@ -77,7 +77,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	receiveOverlapped.hEvent = WSAReceiveCompletedEvents[1] = WSACreateEvent();
 	ReceivedEvents[1].create;
 
-	if (!WSAReceiveCompletedEvents[1] || !ReceivedEvents[1]) {//privacy problem
+	if (!(WSAReceiveCompletedEvents[1].value) || !(ReceivedEvents[1].value)) {//privacy problem
 		_tprintf(_T("CreateEvent() failed for network events, error %d\n"), GetLastError());
 		goto out_main;
 	}
@@ -86,15 +86,15 @@ int _tmain(int argc, _TCHAR* argv[])
 	// Prepare keyboard and starts ReadKeyboard thread
 	//
 	hStdIn = GetStdHandle(STD_INPUT_HANDLE);
-	if (hStdIn == INVALID_HANDLE_VALUE) {
+	if (hStdIn.value == INVALID_HANDLE_VALUE) {
 		_tprintf(_T("GetStdHandle() failed, error %d\n"), GetLastError());
 		return 1;
 	}
-	if (!SetConsoleMode(hStdIn, ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT)) {
+	if (!SetConsoleMode(hStdIn.value, ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT)) {
 		_tprintf(_T("SetConsoleMode() failed, error %d\n"), GetLastError());
 		return 1;
 	}
-	if (!(hReadKeyboard = (HANDLE)_beginthreadex(NULL, 0, &ReadKeyboard, NULL, 0, NULL))) {
+	if (!(hReadKeyboard.value = (HANDLE)_beginthreadex(NULL, 0, &ReadKeyboard, NULL, 0, NULL))) {
 		_tprintf(_T("Unable to create keyboard thread\n"));
 		return 1;
 	}
@@ -145,11 +145,11 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	while (TRUE) {
 
-		if (WaitForSingleObject(hCommandGot, INFINITE) != WAIT_OBJECT_0) {
+		if (WaitForSingleObject(hCommandGot.value, INFINITE) != WAIT_OBJECT_0) {
 			_tprintf(_T("WaitForSingleObject() failed, error %d\n"), GetLastError());
 			goto out_main;
 		}
-		ResetEvent(hCommandGot);
+		hCommandGot.reset;
 
 		if (!connected) {
 			if (!_tcsicmp(CommandBuf, _T("connect"))) { //used for test
@@ -215,8 +215,8 @@ int _tmain(int argc, _TCHAR* argv[])
 	// Shut down
 out_main:
 	if (hReadKeyboard.value) {
-		WaitForSingleObject(hReadKeyboard, INFINITE);
-		hReadKeyboard);
+		WaitForSingleObject( hReadKeyboard.value, INFINITE);
+		hReadKeyboard.set;
 	}
 
 	if (hReceiveNet.value) {
@@ -231,9 +231,9 @@ out_main:
 		closesocket(hClientSocket);
 	}
 	WSACleanup();
-	hStopCommandGot);
-	hCommandGot);
-	hCommandProcessed);
+	hStopCommandGot.close;
+	hCommandGot.close;
+	hCommandProcessed.close;
 	return 0;
 }
 
@@ -394,7 +394,7 @@ unsigned int __stdcall SendNet(void* pArguments) {
 	DWORD waitResult = 0;
 
 	//Variables for sending thread
-	Event SentEvents[3];
+	WSAEvent SentEvents[3];
 	SentEvents[0].copy(hStopCommandGot);
 	WSAOVERLAPPED sendOverlapped;
 	memset(&sendOverlapped, 0, sizeof sendOverlapped);
@@ -411,7 +411,7 @@ unsigned int __stdcall SendNet(void* pArguments) {
 			goto out_send;
 
 		case WAIT_OBJECT_0 + 1:
-			WSAResetEvent(SentEvents[1]);
+			SentEvents[1].reset;
 			if (Result == SOCKET_ERROR) {
 				if ((Error = WSAGetLastError()) != WSA_IO_PENDING) {
 					_tprintf(_T("Sending thread WSASend() failed, error %d\n"), Error);
@@ -437,12 +437,12 @@ unsigned int __stdcall SendNet(void* pArguments) {
 			_tprintf(_T("Sending thread WSAWaitForMultipleEvents() failed, error %d\n"), WSAGetLastError());
 			goto out_send;
 		}
-		WSAResetEvent(SentEvents[1]);
-		WSAResetEvent(SentEvents[2]);
+		SentEvents[1].reset;
+		SentEvents[2].reset;
 	}
 out_send:
 	_tprintf(_T("WSAWaitForMultipleEvents() failed, error %d\n"), WSAGetLastError());
-	WSACloseEvent(SentEvents[1]);
+	SentEvents[1].close;
 	return 0;
 }
 

@@ -17,6 +17,7 @@ public :
 	void copy(Event cEvent) { ev = cEvent.ev; }
 	void close() { CloseHandle(ev); }
 	void beginThread() {}
+	void getStd(){ ev = GetStdHandle(STD_INPUT_HANDLE); }
 	HANDLE value() { return ev; }
 };
 
@@ -24,7 +25,13 @@ class Socket {
 private :
 	HANDLE sock;
 public :
-	void set
+	void set(){}
+};
+
+class WSAEvent : public Event {
+public :
+	void set() { WSASetEvent(ev); }
+	void reset() { WSAResetEvent(ev); }
 };
 
 //#pragma once
